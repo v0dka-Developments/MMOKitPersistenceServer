@@ -15,7 +15,7 @@ namespace PersistenceServer
         // And we'll log him in, if everything checks out
         // Hence, ConnectionCookies survive disconnects
         readonly Dictionary<string, int> _connectionCookies;
-        readonly HashSet<UserConnection> _gameServers;
+        readonly Dictionary<UserConnection, GameServer> _gameServers;
         // Dictionaries below do not survive reconnects, they have to be repopulated on reconnects
         readonly Dictionary<UserConnection, int> _accountIdByConnection;
         readonly Dictionary<int, UserConnection> _connectionByAccountId;
@@ -40,30 +40,29 @@ namespace PersistenceServer
 
         public int GetAccountId(UserConnection conn)
         {
-            return _accountIdByConnection.ContainsKey(conn) ? _accountIdByConnection[conn] : -1;
+            if(_accountIdByConnection.TryGetValue(conn, out var id))
+                return id;
+            return -1;
         }
 
         // Called when the user logs in through the initial menu - he's not in the game world and has no character yet
         public void UserLoggedIn(int userId, string cookie, UserConnection conn)
         {
             _connectionCookies.Add(cookie, userId);
-            if (_accountIdByConnection.ContainsKey(conn))
+            if (_accountIdByConnection.Remove(conn)) // remove if key exists
             {
                 Console.WriteLine("User tried to log in twice, we must never reach here");
                 // try to recover
-                _accountIdByConnection.Remove(conn);
             }
             _accountIdByConnection.Add(conn, userId);
             // if release, don't allow multiple characters from one account
             // but in debug, it's not unexpected, because we may open two windows in PIE and get two characters from the same account
             // @TODO: maybe we should make a bool allowMultipleCharacters and change ConnectionByAccountId to Dictionary<int, List<UserConnection>>
 #if RELEASE
-            if (_connectionByAccountId.ContainsKey(userId))
+            if (_connectionByAccountId.TryGetValue(userId, out var oldConn))
             {
-                var oldConn = _connectionByAccountId[userId];
-                oldConn.Disconnect();
-                UserDisconnected(oldConn); // fire this immediately, because otherwise it would fire too late due to threads jumping
-                //@TODO: tell servers to disconnect this userid!
+                _ = oldConn.Disconnect(); // not awaited
+                UserDisconnected(oldConn); // fire this immediately
             }
 #else
             if (!_connectionByAccountId.ContainsKey(userId))
@@ -73,36 +72,33 @@ namespace PersistenceServer
 
         public int GetAccountIdByCookie(string cookie)
         {
-            return _connectionCookies.ContainsKey(cookie) ? _connectionCookies[cookie] : -1;
+            return _connectionCookies.TryGetValue(cookie, out var connectionValue) ? connectionValue : -1;
         }
 
         public void UserDisconnected(UserConnection conn)
         {
-            if (_gameServers.Contains(conn))
+            if (_gameServers.Remove(conn))
             {
                 Console.WriteLine($"{DateTime.Now:HH:mm} Game server disconnected");
-                _gameServers.Remove(conn);
             }
-            if (_charIdByConnection.ContainsKey(conn))
+            if (_charIdByConnection.TryGetValue(conn, out var playerId))
             {
-                var playerId = _charIdByConnection[conn];
                 _connectionByCharId.Remove(playerId);
                 _charIdByConnection.Remove(conn);
             }
-            if (_accountIdByConnection.ContainsKey(conn))
+            if (_accountIdByConnection.TryGetValue(conn, out var userid))
             {
-                var userid = _accountIdByConnection[conn];
                 _connectionByAccountId.Remove(userid);
                 _accountIdByConnection.Remove(conn);
             }
-            if (_playersByConnection.ContainsKey(conn))
+            if (_playersByConnection.TryGetValue(conn, out var player))
             {
-                var guildId = _playersByConnection[conn].GuildId;
-                if (guildId != -1 && _guildsById.ContainsKey(guildId)) {
-                    _guildsById[guildId].OnPlayerDisconnected(_playersByConnection[conn]);
+                var guildId = player.GuildId;
+                if (guildId != -1 && _guildsById.TryGetValue(guildId, out var guild)) {
+                    guild.OnPlayerDisconnected(player);
                 }
 
-                var charname = _playersByConnection[conn].Name;
+                var charname = player.Name;
                 Console.WriteLine($"{DateTime.Now:HH:mm} Player disconnected: {charname}");
                 _playersByConnection.Remove(conn);
                 _playersByName.Remove(charname);
@@ -112,14 +108,13 @@ namespace PersistenceServer
         // Called when the user connects from the game world - he now has a character
         public void UserReconnected(UserConnection newConn, DatabaseCharacterInfo charInfo)
         {
-            if (_connectionByAccountId.ContainsKey(charInfo.AccountId))
+            if (_connectionByAccountId.TryGetValue(charInfo.AccountId, out var oldConn))
             {
                 // if release, don't allow multiple characters from one account
                 // but in debug, it's not unexpected, because we may open two windows in PIE and get two characters from the same account
                 // @TODO: maybe we should make a bool allowMultipleCharacters and change ConnectionByAccountId to Dictionary<int, List<UserConnection>>
 #if RELEASE
-                var oldConn = _connectionByAccountId[charInfo.AccountId];
-                oldConn.Disconnect();
+                _ = oldConn.Disconnect(); // not awaited
                 UserDisconnected(oldConn); // fire this immediately, because otherwise it would fire too late due to threads jumping
                 //@TODO: tell servers to disconnect this charInfo.AccountId!
 
@@ -139,21 +134,21 @@ namespace PersistenceServer
             _playersByName.Add(charInfo.Name, newPlayer);
             if (charInfo.Guild != null)
             {
-                if (_guildsById.ContainsKey((int)charInfo.Guild))                
-                    _guildsById[(int)charInfo.Guild].OnPlayerConnected(newPlayer);
+                if (_guildsById.TryGetValue((int)charInfo.Guild, out var guild))
+                    guild.OnPlayerConnected(newPlayer);
                 else
                     Console.WriteLine("Player connected with a guild id that doesn't exist. This should never happen, look into it.");
             }
         }
 
-        public void ServerConnected(UserConnection conn)
+        public void ServerConnected(UserConnection conn, GameServer server)
         {
-            _gameServers.Add(conn);
+            _gameServers.Add(conn, server);
         }
 
         public bool IsServer(UserConnection conn)
         {
-            return _gameServers.Contains(conn);
+            return _gameServers.ContainsKey(conn);
         }
 
         public UserConnection[] GetAllPlayerConnections()
@@ -163,49 +158,42 @@ namespace PersistenceServer
 
         public Player? GetPlayerByName(string name)
         {
-            if (_playersByName.ContainsKey(name))
-                return _playersByName[name];
-            return null;
+            return _playersByName.TryGetValue(name, out var player) ? player : null;
         }
 
         public Player? GetPlayerByConnection(UserConnection conn)
         {
-            if (_playersByConnection.ContainsKey(conn))
-                return _playersByConnection[conn];
-            return null;
+            return _playersByConnection.TryGetValue(conn, out var player) ? player : null;
+        }
+
+        public GameServer? GetServerByConnection(UserConnection conn)
+        {
+            return _gameServers.TryGetValue(conn, out var server) ? server : null;
         }
 
         public string GetPlayerName(UserConnection conn)
         {
-            if (_playersByConnection.ContainsKey(conn)) return _playersByConnection[conn].Name;
-            else return "";
+            return _playersByConnection.TryGetValue(conn, out var player) ? player.Name : "";
         }
 
         public UserConnection[] GetAllServerConnections()
         {
-            return _gameServers.ToArray();
+            return _gameServers.Keys.ToArray();
         }
 
         public Guild? GetPlayerGuild(UserConnection conn)
         {
-            if (_playersByConnection.ContainsKey(conn))
+            if (_playersByConnection.TryGetValue(conn, out var player))
             {
-                var guildId = _playersByConnection[conn].GuildId;
-                if (_guildsById.ContainsKey(guildId))
-                {
-                    return _guildsById[guildId];
-                }
+                var guildId = player.GuildId;
+                return _guildsById.TryGetValue(guildId, out var guild) ? guild : null;
             }
             return null;
         }
 
         public Guild? GetGuildById(int guildId)
         {
-            if (_guildsById.ContainsKey(guildId))
-            {
-                return _guildsById[guildId];
-            }
-            return null;
+            return _guildsById.TryGetValue(guildId, out var guild) ? guild : null;
         }
 
         public void AssignGuilds(Dictionary<int, Guild> guilds)
@@ -245,7 +233,9 @@ namespace PersistenceServer
             guild.RemoveMemberById(charId);
         }
 
+#pragma warning disable CA1822 // remove the "make it static" warning, RemoveGuildMember may need to operate on fields later on
         public void RemoveGuildMember(Guild guild, int charId, Player? player)
+#pragma warning restore CA1822
         {
             if (player != null)
             {

@@ -32,6 +32,9 @@ namespace PersistenceServer
         public abstract Task CheckCreateDatabase(SettingsReader settings);
         // Overridden in SQLite and MySQL implementations
         public abstract Task<Guild?> CreateGuild(string guildName, int charId);
+        // Overridden in SQLite and MySQL implementations
+        public abstract Task SaveServerInfo(string serializedServerInfo, int port, string level);
+        public abstract Task SavePersistentObject(string level, int port, int objectId, string jsonString);
         // Always call with 'using' keyword or close manually
         protected abstract Task<DbConnection> GetConnection(string parameters);
         protected abstract DbCommand GetCommand(string parameters, DbConnection? connection);
@@ -422,6 +425,52 @@ namespace PersistenceServer
             deleteCharCmd.AddParam("@accountId", accountId);
             int result = await RunNonQuery(deleteCharCmd);
             return (result == 1);
+        }
+
+        /* Returns: serialized json string */
+        public virtual async Task<string?> GetServerInfo(int port, string level)
+        {
+            var cmd = GetCommand("SELECT serialized FROM servers WHERE port = @port and level = @level");
+            cmd.AddParam("@port", port);
+            cmd.AddParam("@level", level);
+            var dt = await RunQuery(cmd);
+            if (!dt.HasRows()) return null;
+            var row = dt.Rows[0];
+            return row.GetString("serialized");
+        }
+
+        public struct PersistentObject
+        {
+            public int ObjectId;
+            public string JsonString;
+            public PersistentObject(int inObjectId, string inJsonString)
+            {
+                ObjectId = inObjectId;
+                JsonString = inJsonString;
+            }
+        }
+
+        public virtual async Task<List<PersistentObject>> GetPersistentObjects(int port, string level)
+        {
+            List<PersistentObject> result = new();
+            var cmd = GetCommand("SELECT objectId, serialized FROM persistentobjs WHERE port = @port and level = @level");
+            cmd.AddParam("@port", port);
+            cmd.AddParam("@level", level);
+            var dt = await RunQuery(cmd);
+            foreach (DataRow row in dt.Rows.OfType<DataRow>())
+            {
+                result.Add(new PersistentObject((int)row.GetInt("objectId")!, (string)row.GetString("serialized")!));
+            }
+            return result;
+        }
+
+        public virtual async Task DeletePersistentObject(string level, int port, int objectId)
+        {
+            var cmd = GetCommand("DELETE FROM `persistentobjs` WHERE level = @level and port = @port and objectId = @objectId");
+            cmd.AddParam("@level", level);
+            cmd.AddParam("@port", port);            
+            cmd.AddParam("@objectId", objectId);
+            await RunNonQuery(cmd);
         }
     }
 }

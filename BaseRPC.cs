@@ -7,9 +7,9 @@ namespace PersistenceServer
     abstract public class BaseRpc
     {
         public RpcType RpcType = RpcType.RpcUndef;
-        protected MmoTcpServer? Server;
+        protected MmoWsServer? Server;
 
-        public void SubscribeToMessages(MmoTcpServer inServer)
+        public void SubscribeToMessages(MmoWsServer inServer)
         {
             Server = inServer;
             inServer.OnMessageReceived += TryTrigger;

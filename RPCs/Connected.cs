@@ -12,7 +12,7 @@
         protected override void ReadRpc(UserConnection connection, BinaryReader reader)
         {
 #if DEBUG
-            Console.Write($"(thread {Thread.CurrentThread.ManagedThreadId}) ");
+            Console.Write($"(thread {Environment.CurrentManagedThreadId}) ");
 #endif
             Console.WriteLine($"User connected. Session Id: {connection.Id}");
         }

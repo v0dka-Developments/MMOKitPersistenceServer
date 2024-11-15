@@ -39,7 +39,7 @@ namespace PersistenceServer.RPCs
             if (accountId < 0)
             {
                 Console.WriteLine($"{DateTime.Now:HH:mm} LoginWithCookie failed for client: bad cookie");
-                connection.Disconnect();
+                _ = connection.Disconnect(); // not awaited
                 return;
             }
             
@@ -52,7 +52,7 @@ namespace PersistenceServer.RPCs
             else
             {
                 Console.WriteLine($"{DateTime.Now:HH:mm} LoginWithCookie failed for client: bad char id");
-                connection.Disconnect();
+                _ = connection.Disconnect(); // not awaited
             }
         }
 
@@ -64,7 +64,7 @@ namespace PersistenceServer.RPCs
             if (charInfo == null)
             {
                 Console.WriteLine($"{DateTime.Now:HH:mm} LoginWithCookie failed for client: not enough characters in DB for PIE window: {pieWindowId}");
-                connection.Disconnect();
+                _ = connection.Disconnect(); // not awaited
                 return;
             } 
             else

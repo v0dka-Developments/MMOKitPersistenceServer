@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using Microsoft.AspNetCore.Hosting.Server;
+using System.Net;
 
 namespace PersistenceServer
 {
@@ -18,7 +19,7 @@ namespace PersistenceServer
             await database.CheckCreateDatabase(settings);
 
             // Create a new TCP-based server. IPAddress.Any = people can connect from any ip.
-            var server = new MmoTcpServer(IPAddress.Any, settings, database);
+            var server = new MmoWsServer(settings, database);
             int guildsTotal = await server.RequestGuilds();
             Console.WriteLine($"Guilds received: {guildsTotal}");
             server.Start();
@@ -42,8 +43,8 @@ namespace PersistenceServer
                 if (line == "!")
                 {
                     Console.Write("Server restarting...");
-                    server.Stop();
-                    server = new MmoTcpServer(IPAddress.Any, settings, database);
+                    await server.Stop();
+                    server = new MmoWsServer(settings, database);
                     guildsTotal = await server.RequestGuilds();
                     Console.WriteLine($"Guilds received: {guildsTotal}");
                     server.Start();
@@ -60,7 +61,7 @@ namespace PersistenceServer
 
             // Stop the server
             Console.Write("Server stopping...");
-            server.Stop();
+            await server.Stop();
             Console.WriteLine("Done!");
         }
     }

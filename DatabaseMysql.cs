@@ -84,6 +84,23 @@ namespace PersistenceServer
                         INDEX GUILD (guild),
                         CONSTRAINT character_owner_fk FOREIGN KEY (owner) REFERENCES accounts(id) ON UPDATE CASCADE ON DELETE SET NULL,
                         CONSTRAINT character_guild_fk FOREIGN KEY (guild) REFERENCES guilds(id) ON UPDATE CASCADE ON DELETE SET NULL
+                    ) ENGINE = InnoDB;
+                    CREATE TABLE IF NOT EXISTS servers (
+                        id int NOT NULL AUTO_INCREMENT,
+                        port int NOT NULL,
+                        level text NOT NULL,
+                        serialized text,
+                        PRIMARY KEY (id),
+                        UNIQUE INDEX PORT_LEVEL (`port`, `level`(100))
+                    ) ENGINE = InnoDB;
+                    CREATE TABLE IF NOT EXISTS persistentobjs (
+                        id int NOT NULL AUTO_INCREMENT,
+                        level text NOT NULL,
+                        port int NOT NULL,
+                        objectId int NOT NULL,
+                        serialized text NOT NULL,
+                        PRIMARY KEY (id),
+                        UNIQUE INDEX PERSISTENT_OBJ_INDEX (`objectId`, `port`, `level`(100))
                     ) ENGINE = InnoDB;"
                 );
             // ~create tables            
@@ -137,6 +154,30 @@ namespace PersistenceServer
             cmd2.AddParam("@charId", charId);
             await RunNonQuery(cmd2);
             return new Guild(lastInsertedId, guildName);
+        }
+
+        // Because sqlite and mysql diverge when handling upsert operations (insert or update), we got two different functions
+        // The identifier here is level+port
+        public override async Task SaveServerInfo(string serializedServerInfo, int port, string level)
+        {
+            var cmd = GetCommand("INSERT INTO `servers` (`id`, `port`, `level`, `serialized`) VALUES (NULL, @port, @level, @serialized) ON DUPLICATE KEY UPDATE serialized = VALUES(serialized);");
+            cmd.AddParam("@port", port);
+            cmd.AddParam("@level", level);
+            cmd.AddParam("@serialized", serializedServerInfo);
+            await RunInsert(cmd);
+            Console.WriteLine($"{DateTime.Now:HH:mm} Server Info ({port}-{level}) was saved to DB.");
+        }
+
+        // Because sqlite and mysql diverge when handling upsert operations (insert or update), we got two different functions
+        // The identifier in the DB is a combination of level+port+objectId
+        public override async Task SavePersistentObject(string level, int port, int objectId, string jsonString)
+        {
+            var cmd = GetCommand("INSERT INTO `persistentobjs` (`id`, `level`, `port`, `objectId`, `serialized`) VALUES (NULL, @level, @port, @objectId, @serialized) ON DUPLICATE KEY UPDATE serialized = VALUES(serialized);");
+            cmd.AddParam("@level", level); 
+            cmd.AddParam("@port", port);
+            cmd.AddParam("@objectId", objectId);
+            cmd.AddParam("@serialized", jsonString);
+            await RunInsert(cmd);
         }
     }
 }

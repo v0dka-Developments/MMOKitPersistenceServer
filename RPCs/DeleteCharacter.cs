@@ -24,7 +24,7 @@ namespace PersistenceServer.RPCs
             if (accountId == -1)
             {
                 Console.WriteLine($"{DateTime.Now:HH:mm} Unlogged user attempted to delete a character? This must never happen.");
-                playerConn.Disconnect();
+                _ = playerConn.Disconnect(); // not awaited
                 return;
             }
 

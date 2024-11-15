@@ -20,7 +20,7 @@ namespace PersistenceServer.RPCs
             string steamId = reader.ReadMmoString();
             string authTicket = reader.ReadMmoString();
 #if DEBUG
-            Console.WriteLine($"(thread {Thread.CurrentThread.ManagedThreadId}): Login with steam");
+            Console.WriteLine($"(thread {Environment.CurrentManagedThreadId}): Login with steam");
 #endif            
             Server!.Processor.ConQ.Enqueue(async () => await ProcessLogin(steamId, authTicket, connection));
         }

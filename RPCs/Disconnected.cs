@@ -14,16 +14,13 @@ namespace PersistenceServer.RPCs
         protected override void ReadRpc(UserConnection connection, BinaryReader reader)
         {
 #if DEBUG
-            Console.Write($"(thread {Thread.CurrentThread.ManagedThreadId}) ");
-#endif            
-
+            Console.WriteLine($"(thread {Environment.CurrentManagedThreadId}) Client Disconnected");
+#endif
             Server!.Processor.ConQ.Enqueue(() => ProcessMessage(connection));
         }
 
         private void ProcessMessage(UserConnection conn)
         {
-            
-
             var player = Server!.GameLogic.GetPlayerByConnection(conn);
 
             if (player != null)

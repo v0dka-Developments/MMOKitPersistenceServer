@@ -14,7 +14,7 @@
             string accountName = reader.ReadMmoString();
             string password = reader.ReadMmoString();
 #if DEBUG
-            Console.WriteLine($"(thread {Thread.CurrentThread.ManagedThreadId}): Create account");
+            Console.WriteLine($"(thread {Environment.CurrentManagedThreadId}): Create account");
 #endif            
             Server!.Processor.ConQ.Enqueue(async () => await ProcessAccountCreation(accountName, password, connection));
         }

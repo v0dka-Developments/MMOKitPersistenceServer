@@ -14,7 +14,7 @@
             string accountName = reader.ReadMmoString();
             string password = reader.ReadMmoString();
 #if DEBUG
-            Console.WriteLine($"(thread {Thread.CurrentThread.ManagedThreadId}): Login with password");
+            Console.WriteLine($"(thread {Environment.CurrentManagedThreadId}): Login with password");
 #endif            
             Server!.Processor.ConQ.Enqueue(async () => await ProcessLogin(accountName, password, connection));
         }

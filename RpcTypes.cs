@@ -41,5 +41,7 @@
         RpcGuildKick, // 34
         RpcMessageGuildOfficer, // 35
         RpcGuildAdjustRank, // 36
+        RpcSaveServerInfo, // 37
+        RpcSavePersistentObject, // 38
     }
 }

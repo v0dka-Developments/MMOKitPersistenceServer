@@ -14,10 +14,10 @@
         {
             int charId = reader.ReadInt32();
             string serialized = reader.ReadMmoString();
-            Server!.Processor.ConQ.Enqueue(async () => await ProcessSaveCreation(charId, serialized, connection));
+            Server!.Processor.ConQ.Enqueue(async () => await ProcessSaveCharacter(charId, serialized, connection));
         }
 
-        private async Task ProcessSaveCreation(int charId, string serializedCharacter, UserConnection conn)
+        private async Task ProcessSaveCharacter(int charId, string serializedCharacter, UserConnection conn)
         {
             if (!Server!.GameLogic.IsServer(conn))
             {

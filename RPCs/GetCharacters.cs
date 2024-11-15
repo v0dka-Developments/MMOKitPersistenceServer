@@ -21,7 +21,7 @@
             if (accountId == -1)
             {
                 Console.WriteLine("Get characters failed: user not logged in. This must never happen.");
-                connection.Disconnect();
+                _ = connection.Disconnect(); // not awaited
                 return;
             }
             var characters = await Server!.Database.GetCharacters(accountId);

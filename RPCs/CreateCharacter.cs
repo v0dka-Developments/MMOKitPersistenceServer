@@ -38,7 +38,7 @@
             if (accountId == -1)
             {
                 Console.WriteLine("Creating player failed: user not logged in. This must never happen.");
-                connection.Disconnect();
+                _ = connection.Disconnect(); // not awaited
                 return;
             }
             Console.Write($"Creating player named: '{playerName}', ");

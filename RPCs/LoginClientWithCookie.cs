@@ -1,5 +1,10 @@
-﻿namespace PersistenceServer.RPCs
+﻿using System;
+using System.Numerics;
+
+namespace PersistenceServer.RPCs
 {
+
+    /// Happens when a player connects to the world map and already has a cookie ready from previous <see cref="LoginPassword"/> or <see cref="LoginWithSteam"/>   
     public class LoginClientWithCookie : BaseRpc
     {
         public LoginClientWithCookie()
@@ -33,20 +38,20 @@
             var accountId = Server!.GameLogic.GetAccountIdByCookie(cookie);
             if (accountId < 0)
             {
-                Console.WriteLine("LoginWithCookie failed for client: bad cookie");
+                Console.WriteLine($"{DateTime.Now:HH:mm} LoginWithCookie failed for client: bad cookie");
                 connection.Disconnect();
                 return;
             }
             
-            var charname = await Server!.Database.DoesAccountOwnCharacter(accountId, charId);
-            if (charname != null)
+            var charInfo = await Server!.Database.GetCharacter(charId, accountId);
+            if (charInfo != null)
             {
-                Console.WriteLine($"Client relogged with character: {charname}");
-                Server!.GameLogic.UserReconnected(connection, accountId, charId, charname);
+                Console.WriteLine($"{DateTime.Now:HH:mm} Client relogged with character: {charInfo.Name}");
+                ProcessLogin(charInfo, connection);
             }
             else
             {
-                Console.WriteLine("LoginWithCookie failed for client: bad char id");
+                Console.WriteLine($"{DateTime.Now:HH:mm} LoginWithCookie failed for client: bad char id");
                 connection.Disconnect();
             }
         }
@@ -55,14 +60,55 @@
         // Neither does it have a valid charId. It'll provide Pie Window ID instead, couting from 0.
         private async Task ProcessLoginClientFromEditor(int pieWindowId, UserConnection connection)
         {
-            var result = await Server!.Database.GetCharacterForPieWindow(pieWindowId);
-            if (result == null)
+            var charInfo = await Server!.Database.GetCharacterForPieWindow(pieWindowId);
+            if (charInfo == null)
             {
-                Console.WriteLine($"LoginWithCookie failed for client: not enough characters in DB for PIE window: {pieWindowId}");
+                Console.WriteLine($"{DateTime.Now:HH:mm} LoginWithCookie failed for client: not enough characters in DB for PIE window: {pieWindowId}");
                 connection.Disconnect();
                 return;
+            } 
+            else
+            {
+                Console.WriteLine($"{DateTime.Now:HH:mm} LoginWithCookie: {charInfo.Name} logged in for PIE window {pieWindowId}");
             }
-            Server!.GameLogic.UserReconnected(connection, result.Item4, result.Item1, result.Item2);
+            ProcessLogin(charInfo, connection);
+        }
+
+        private void ProcessLogin(DatabaseCharacterInfo charInfo, UserConnection connection)
+        {
+            Server!.GameLogic.UserReconnected(connection, charInfo);
+            // if this char is in a guild
+            // 1. send him the full guild roster
+            // 2. tell all servers what this guy's guild is
+            // 3. send a message to other online guild members that this one just came online
+            if (charInfo.Guild != null)
+            {
+                var guild = Server!.GameLogic.GetPlayerGuild(connection);
+                if (guild != null)
+                {
+                    // 1. send him the full guild roster
+                    byte[] msg = MergeByteArrays(ToBytes(RpcType.RpcGuildAllMembersUpdate), WriteMmoString(GetGuildMembersJson(guild)));
+                    connection.Send(msg);
+
+                    // 2. send message to all servers that a character with a certain id belongs to a guild with a certain id & name
+                    // For server, params are: char id, guild name, guild id, guild rank
+                    byte[] msgToServers = MergeByteArrays(ToBytes(RpcType.RpcGuildMemberUpdate), ToBytes(charInfo.CharId), WriteMmoString(guild.Name), ToBytes(guild.Id), ToBytes((int)charInfo.GuildRank!));
+                    foreach (var serverConn in Server!.GameLogic.GetAllServerConnections())
+                    {
+                        serverConn.Send(msgToServers);
+                    }
+
+                    // 3. send a message to other online guild members that this one just came online
+                    // for client, params are: char id, guild rank, online status (bool)
+                    byte[] msgToGuildies = MergeByteArrays(ToBytes(RpcType.RpcGuildMemberUpdate), ToBytes(charInfo.CharId), ToBytes((int)charInfo.GuildRank!), ToBytes(true)); // true for online
+                    foreach (var onlineMember in guild.GetOnlineMembers())
+                    {
+                        // if this is our character, we don't need to tell him that he just went online
+                        if (onlineMember.Conn == connection) continue;
+                        onlineMember.Conn.Send(msgToGuildies);
+                    }
+                }
+            }
         }
     }
 }

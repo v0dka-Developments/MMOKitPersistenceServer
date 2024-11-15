@@ -34,9 +34,10 @@
             List<byte> allCharacters = new();
             foreach (var toon in characters)
             {
-                allCharacters.AddRange(ToBytes(toon.Item1)); // id
-                allCharacters.AddRange(WriteMmoString(toon.Item2)); // name
-                allCharacters.AddRange(WriteMmoString(toon.Item3)); // json
+                allCharacters.AddRange(ToBytes(toon.CharId)); // id
+                allCharacters.AddRange(WriteMmoString(toon.Name)); // name
+                allCharacters.AddRange(WriteMmoString(toon.SerializedCharacter)); // json
+                //@TODO: also send guild name & read it on the client
             }
 
             byte[] msg = MergeByteArrays(ToBytes(RpcType.RpcGetCharacters), numCharacters, allCharacters.ToArray());

@@ -19,6 +19,8 @@ namespace PersistenceServer
         public readonly string UniversalCookie; // cookie used by clients connecting from PIE, who subsequently don't have a valid cookie, but still need a character
         public readonly string SteamWebApiKey;
         public readonly string SteamAppId;
+        public readonly int DefaultGuildRank;
+        public readonly int GuildOfficerRank;
 
         public readonly string? MysqlHost;
         public readonly int? MysqlPort;
@@ -27,7 +29,7 @@ namespace PersistenceServer
         public readonly string? MysqlDatabase;
         public readonly bool MysqlAccentSensitiveCollation;
 
-        public readonly string? SqliteFilename;
+        public readonly string? SqliteFilename;        
 
         public SettingsReader()
         {
@@ -35,6 +37,8 @@ namespace PersistenceServer
             IniData data = parser.ReadFile("settings.ini");
 
             Port = int.Parse(data["General"]["port"]);
+            DefaultGuildRank = int.Parse(data["General"]["DefaultGuildRank"]);
+            GuildOfficerRank = int.Parse(data["General"]["GuildOfficerRank"]);
             var dms = data["General"]["dms"];
 #if DEBUG_MYSQL
             dms = "mysql";

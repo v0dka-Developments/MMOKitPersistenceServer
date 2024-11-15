@@ -23,7 +23,7 @@
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="ini-parser-netstandard" Version="2.5.2" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="7.0.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="7.0.5" />
     <PackageReference Include="MySqlConnector" Version="2.2.0" />
     <PackageReference Include="NetCoreServer" Version="6.7.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />

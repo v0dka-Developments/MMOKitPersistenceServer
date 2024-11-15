@@ -30,5 +30,16 @@
         RpcSaveCharacter, // 26
         RpcNoSuchPlayer, // 27
         RpcKeepAliveProbe, // 28
+        RpcAdminMessage, // 29
+        /* RpcGuildMemberUpdate explanation:
+        * For game servers: when a member joins or leaves a guild, or simply logs in, we inform all game servers of his guild's id and name
+        * For game clients: when a member changes rank or online status */
+        RpcGuildMemberUpdate, // 30
+        RpcGuildAllMembersUpdate, // 31 -- when we send a complete list of players in the guild with their roles and online status
+        RpcGuildMemberJoined, // 32 -- a player joined your guild
+        RpcDeleteCharacter, // 33
+        RpcGuildKick, // 34
+        RpcMessageGuildOfficer, // 35
+        RpcGuildAdjustRank, // 36
     }
 }

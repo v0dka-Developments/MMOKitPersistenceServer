@@ -60,32 +60,32 @@
 
             byte[] binAccountId = ToBytes(accountId);
             byte[] binCharId = ToBytes(charId);
-            byte[] binCharname = WriteMmoString(character.Item1);
-            byte[] binSerialized = WriteMmoString(character.Item2);
-            byte[] binGuild = ToBytes(character.Item3 ?? -1);
-            byte[] binGuildrank = ToBytes(character.Item4 ?? -1);
-            Console.WriteLine($"GetCharacter processed for: {character.Item1}");
+            byte[] binCharname = WriteMmoString(character.Name);
+            byte[] binSerialized = WriteMmoString(character.SerializedCharacter);
+            byte[] binGuild = ToBytes(character.Guild ?? -1);
+            byte[] binGuildrank = ToBytes(character.GuildRank ?? -1);
+            Console.WriteLine($"GetCharacter processed for: {character.Name}");
             byte[] msgSuccess = MergeByteArrays(ToBytes(RpcType.RpcGetCharacter), ToBytes(true), binAccountId, binCharId, binCharname, binSerialized, binGuild, binGuildrank);
             connection.Send(msgSuccess);
         }
 
         private async Task ProcessGetCharacterForPie(int pieWindowId, UserConnection connection)
         {
-            var character = await Server!.Database.GetCharacterForPieWindow(pieWindowId);
-            if (character == null)
+            var charInfo = await Server!.Database.GetCharacterForPieWindow(pieWindowId);
+            if (charInfo == null)
             {
                 Console.WriteLine($"LoginWithCookie failed for client: not enough characters in DB for PIE window: {pieWindowId}");
                 byte[] msg = MergeByteArrays(ToBytes(RpcType.RpcGetCharacter), ToBytes(false)); // this will tell the game server to disconnect this user
                 connection.Send(msg);
                 return;
             }
-            byte[] binAccountId = ToBytes(character.Item4);
-            byte[] binCharId = ToBytes(character.Item1);
-            byte[] binCharname = WriteMmoString(character.Item2);
-            byte[] binSerialized = WriteMmoString(character.Item3);
-            byte[] binGuild = ToBytes(character.Item5 ?? -1);
-            byte[] binGuildrank = ToBytes(character.Item5 ?? -1);
-            Console.WriteLine($"GetCharacter processed for: {character.Item2}");
+            byte[] binAccountId = ToBytes(charInfo.AccountId);
+            byte[] binCharId = ToBytes(charInfo.CharId);
+            byte[] binCharname = WriteMmoString(charInfo.Name);
+            byte[] binSerialized = WriteMmoString(charInfo.SerializedCharacter);
+            byte[] binGuild = ToBytes(charInfo.Guild ?? -1);
+            byte[] binGuildrank = ToBytes(charInfo.GuildRank ?? -1);
+            Console.WriteLine($"GetCharacter processed for account: {charInfo.AccountId}, character: {charInfo.Name}");
             byte[] msgSuccess = MergeByteArrays(ToBytes(RpcType.RpcGetCharacter), ToBytes(true), binAccountId, binCharId, binCharname, binSerialized, binGuild, binGuildrank);
             connection.Send(msgSuccess);
         }

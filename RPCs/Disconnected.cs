@@ -1,4 +1,6 @@
-﻿namespace PersistenceServer.RPCs
+﻿using System;
+
+namespace PersistenceServer.RPCs
 {
     public class Disconnected : BaseRpc
     {
@@ -13,10 +15,37 @@
         {
 #if DEBUG
             Console.Write($"(thread {Thread.CurrentThread.ManagedThreadId}) ");
-#endif
-            Console.WriteLine($"User disconnected. Session Id: {connection.Id}");
+#endif            
 
-            Server!.Processor.ConQ.Enqueue(() => Server!.GameLogic.UserDisconnected(connection));
+            Server!.Processor.ConQ.Enqueue(() => ProcessMessage(connection));
+        }
+
+        private void ProcessMessage(UserConnection conn)
+        {
+            
+
+            var player = Server!.GameLogic.GetPlayerByConnection(conn);
+
+            if (player != null)
+                Console.WriteLine($"{DateTime.Now:HH:mm} {player.Name} went offline.");
+            else
+                Console.WriteLine($"{DateTime.Now:HH:mm} User disconnected. Session Id: {conn.Id}");
+
+            var guild = Server!.GameLogic.GetPlayerGuild(conn);
+            if (guild != null && player != null)
+            {
+                // send a message to other online guild members that this one just went offline
+                // for client, params are: char id, guild rank, online status (bool)
+                byte[] msgToGuildies = MergeByteArrays(ToBytes(RpcType.RpcGuildMemberUpdate), ToBytes(player.CharId), ToBytes((int)player.GuildRank!), ToBytes(false)); // true for online
+                foreach (var onlineMember in guild.GetOnlineMembers())
+                {
+                    // if this is our character, we don't need to tell him that he just went offline
+                    if (onlineMember.Conn == conn) continue;
+                    onlineMember.Conn.Send(msgToGuildies);
+                }
+            }
+
+            Server!.GameLogic.UserDisconnected(conn);            
         }
     }
 }

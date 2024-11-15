@@ -43,8 +43,15 @@ namespace PersistenceServer
                 await RunNonQuery(cmdStr, firstTimeConnectionStr);
                 // ~create database
 
-                // create tables
-                await RunNonQuery(
+                Console.WriteLine("done.");
+            }
+            else
+            {
+                Console.WriteLine("Database found: " + doesDbExistQuery.GetString(0, 0));
+            }
+
+            // tables are created if the DB doesn't have them
+            await RunNonQuery(
                     @"CREATE TABLE IF NOT EXISTS accounts (
 	                    id int NOT NULL AUTO_INCREMENT,
 	                    name varchar(50),
@@ -60,6 +67,7 @@ namespace PersistenceServer
                     CREATE TABLE IF NOT EXISTS guilds (
 	                    id int NOT NULL AUTO_INCREMENT,
 	                    name varchar(50) NOT NULL,
+                        serialized text,
 	                    PRIMARY KEY (id),
 	                    UNIQUE INDEX NAME (name)
                     ) ENGINE = InnoDB;
@@ -78,14 +86,7 @@ namespace PersistenceServer
                         CONSTRAINT character_guild_fk FOREIGN KEY (guild) REFERENCES guilds(id) ON UPDATE CASCADE ON DELETE SET NULL
                     ) ENGINE = InnoDB;"
                 );
-                // ~create tables
-
-                Console.WriteLine("done.");
-            }
-            else
-            {                
-                Console.WriteLine("Database found: " + doesDbExistQuery.GetString(0, 0));
-            }
+            // ~create tables            
         }
 
         public override async Task<int> LoginUser(string accountName, string password)
@@ -119,6 +120,23 @@ namespace PersistenceServer
 
             // if everything checks out, allow login by returning user's id
             return id;
+        }
+
+        public override async Task<Guild?> CreateGuild(string guildName, int charId)
+        {
+            // if the name is taken, insert will fail silently, returning 0 inserted rows
+            var cmd = GetCommand("INSERT IGNORE INTO `guilds` (`id`, `name`) VALUES (NULL, @guildName);");
+            cmd.AddParam("@guildName", guildName);
+            int lastInsertedId = await RunInsert(cmd);
+            if (lastInsertedId == 0)
+            {
+                return null;
+            }
+            var cmd2 = GetCommand("UPDATE `characters` SET `guild` = @guildId, `guildRank` = '0' WHERE `characters`.`id` = @charId; ");
+            cmd2.AddParam("@guildId", lastInsertedId);
+            cmd2.AddParam("@charId", charId);
+            await RunNonQuery(cmd2);
+            return new Guild(lastInsertedId, guildName);
         }
     }
 }

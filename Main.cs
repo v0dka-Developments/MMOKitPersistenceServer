@@ -4,7 +4,7 @@ namespace PersistenceServer
 {
     class Program
     {
-        static async Task Main(string[] args)
+        static async Task Main(/*string[] args*/)
         {
             // Reads from settings.ini
             SettingsReader settings = new();
@@ -18,7 +18,9 @@ namespace PersistenceServer
             await database.CheckCreateDatabase(settings);
 
             // Create a new TCP-based server. IPAddress.Any = people can connect from any ip.
-            var server = new MmoTcpServer(IPAddress.Any, settings, database);                                   
+            var server = new MmoTcpServer(IPAddress.Any, settings, database);
+            int guildsTotal = await server.RequestGuilds();
+            Console.WriteLine($"Guilds received: {guildsTotal}");
             server.Start();
             Console.WriteLine($"Server started on port: {settings.Port}");
 
@@ -42,6 +44,8 @@ namespace PersistenceServer
                     Console.Write("Server restarting...");
                     server.Stop();
                     server = new MmoTcpServer(IPAddress.Any, settings, database);
+                    guildsTotal = await server.RequestGuilds();
+                    Console.WriteLine($"Guilds received: {guildsTotal}");
                     server.Start();
                     Console.WriteLine("Done!");
                     continue;
@@ -49,7 +53,8 @@ namespace PersistenceServer
 
                 if (line.StartsWith("admin ")) // Multicast system message to all sessions
                 {                    
-                    server.BroadcastAdminMessage(line.Substring(6)); // removes "admin " from the message
+                    server.BroadcastAdminMessage(line[6..]); // removes "admin " from the message
+                    continue;
                 }
             }
 

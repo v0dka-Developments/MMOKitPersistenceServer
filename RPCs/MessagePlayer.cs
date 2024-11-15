@@ -24,7 +24,7 @@
         {
             var sender = Server!.GameLogic.GetPlayerByConnection(senderConn);
             if (sender == null) return; // player could've disconnected in the meantime, so we abort
-            var senderName = sender.Value.Name;
+            var senderName = sender.Name;
             
             // attempt to find recipient
             var recipient = Server!.GameLogic.GetPlayerByName(recipientName);
@@ -52,7 +52,7 @@
                 WriteMmoString(senderName),
                 WriteMmoString(message)
             );
-            recipient.Value.Conn.Send(msgToRecipient);            
+            recipient.Conn.Send(msgToRecipient);            
         }
     }
 }

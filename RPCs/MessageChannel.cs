@@ -13,7 +13,7 @@
         protected override void ReadRpc(UserConnection connection, BinaryReader reader)
         {
             int channel = reader.ReadInt32();
-            string message = reader.ReadMmoString();            
+            string message = reader.ReadMmoString();
             int maxLength = 255;
             // Trim message by maxLength (255 characters)
             message = message.Length <= maxLength ? message : message[..maxLength]; // .. is a C# 8.0 Range Operator https://www.codeguru.com/csharp/c-8-0-ranges-and-indices-types/

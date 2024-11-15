@@ -1,10 +1,21 @@
-﻿using System.Data;
+﻿using System;
+using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
 using System.Text;
 
 namespace PersistenceServer
 {
+    public class DatabaseCharacterInfo
+    {
+        public int AccountId;
+        public int CharId;
+        public string Name = "";
+        public string SerializedCharacter = "";
+        public int? Guild;
+        public int? GuildRank;
+    }
+
     public abstract class Database
     {
         protected string ConnectionParams;
@@ -12,12 +23,15 @@ namespace PersistenceServer
         protected readonly string Pepper = "$2a$11$46Z/ZIevW5fGpZFXJK5CMe";
         protected string GetIdentitySqlCommand;
 
-#pragma warning disable CS8618 // ignore CS8618 because it's an abstract class
+#pragma warning disable CS8618, IDE0060 // ignore CS8618 because it's an abstract class, IDE0060 because we're using the settings in children classes
         protected Database(SettingsReader settings) { }
-#pragma warning restore CS8618
+#pragma warning restore CS8618, IDE0060
 
         // Checks that there is a database, if not creates one
+        // Overridden in SQLite and MySQL implementations
         public abstract Task CheckCreateDatabase(SettingsReader settings);
+        // Overridden in SQLite and MySQL implementations
+        public abstract Task<Guild?> CreateGuild(string guildName, int charId);
         // Always call with 'using' keyword or close manually
         protected abstract Task<DbConnection> GetConnection(string parameters);
         protected abstract DbCommand GetCommand(string parameters, DbConnection? connection);
@@ -49,7 +63,7 @@ namespace PersistenceServer
             command.Connection = conn;
             await using var reader = await command.ExecuteReaderAsync();
             DataTable dt = new();
-            dt.Load(reader);
+                dt.Load(reader);
             await command.DisposeAsync();
             return dt;
         }
@@ -95,7 +109,7 @@ namespace PersistenceServer
         //}
 
         // Returns the last inserted row id
-        private async Task<int> RunInsert(DbCommand command)
+        protected async Task<int> RunInsert(DbCommand command)
         {
             command.CommandText += GetIdentitySqlCommand;
             await using var conn = await GetConnection(ConnectionParams);
@@ -196,26 +210,32 @@ namespace PersistenceServer
             return lastInsertedId;
         }
 
-        public virtual async Task<List<Tuple<int, string, string>>> GetCharacters(int accountId)
+        public virtual async Task<List<DatabaseCharacterInfo>> GetCharacters(int accountId)
         {
-            List<Tuple<int, string, string>> result = new();
+            List<DatabaseCharacterInfo> result = new();
 
             var cmd = GetCommand("SELECT * FROM characters WHERE owner = @accountId");
             cmd.AddParam("@accountId", accountId);
             var dt = await RunQuery(cmd);
             foreach (var row in dt.Rows.OfType<DataRow>())
             {
-                var id = row.GetInt("id");
-                var name = row.GetString("name");
-                var serialized = row.GetString("serialized");
-                result.Add(new Tuple<int, string, string>((int)id!, name!, serialized!));
+                DatabaseCharacterInfo charInfo = new()
+                {
+                    AccountId = (int)row.GetInt("owner")!,
+                    CharId = (int)row.GetInt("id")!,
+                    Name = row.GetString("name")!,
+                    SerializedCharacter = row.GetString("serialized")!,
+                    Guild = row.GetInt("guild"),
+                    GuildRank = row.GetInt("guildrank")
+                };
+                result.Add(charInfo);
             }
 
             return result;
         }
 
         /* Returns: name, serialized, guild, guildrank */
-        public virtual async Task<Tuple<string, string, int?, int?>?> GetCharacter(int charId, int accountId)
+        public virtual async Task<DatabaseCharacterInfo?> GetCharacter(int charId, int accountId)
         {
             var cmd = GetCommand("SELECT * FROM characters WHERE id = @charId and owner = @accountId");
             cmd.AddParam("@charId", charId);
@@ -223,40 +243,57 @@ namespace PersistenceServer
             var dt = await RunQuery(cmd);
             if (!dt.HasRows()) return null;
             var row = dt.Rows[0];
-            string charname = row.GetString("name")!;
-            string serialized = row.GetString("serialized")!;
-            int? guild = row.GetInt("guild");
-            int? guildrank = row.GetInt("guildrank");
-            return new Tuple<string, string, int?, int?>(charname, serialized, guild, guildrank);
+
+            DatabaseCharacterInfo character = new() {
+                AccountId = (int)row.GetInt("owner")!,
+                CharId = (int)row.GetInt("id")!,
+                Name = row.GetString("name")!,
+                SerializedCharacter = row.GetString("serialized")!,
+                Guild = row.GetInt("guild"),
+                GuildRank = row.GetInt("guildrank")
+            };
+            return character;
         }
 
-        // Returns true/false and optionally a charname
-        public virtual async Task<string?> DoesAccountOwnCharacter(int accountId, int charId)
+        /* Returns: name, serialized, guild, guildrank */
+        public virtual async Task<DatabaseCharacterInfo?> GetCharacterByName(string charName, int accountId)
         {
-            var cmd = GetCommand("SELECT * FROM characters WHERE id = @charId and owner = @accountId");
-            cmd.AddParam("@charId", charId);
+            var cmd = GetCommand("SELECT * FROM characters WHERE name = @charName and owner = @accountId");
+            cmd.AddParam("@charName", charName);
             cmd.AddParam("@accountId", accountId);
             var dt = await RunQuery(cmd);
             if (!dt.HasRows()) return null;
             var row = dt.Rows[0];
-            string charname = row.GetString("name")!;
-            return charname;
+
+            DatabaseCharacterInfo character = new()
+            {
+                AccountId = (int)row.GetInt("owner")!,
+                CharId = (int)row.GetInt("id")!,
+                Name = row.GetString("name")!,
+                SerializedCharacter = row.GetString("serialized")!,
+                Guild = row.GetInt("guild"),
+                GuildRank = row.GetInt("guildrank")
+            };
+            return character;
         }
 
-        public virtual async Task<Tuple<int, string, string, int, int?, int?>?> GetCharacterForPieWindow(int pieWindowId)
+        public virtual async Task<DatabaseCharacterInfo?> GetCharacterForPieWindow(int pieWindowId)
         {
             var cmd = GetCommand("SELECT * FROM `characters` ORDER BY id ASC LIMIT @pieWindowId,1 ");
             cmd.AddParam("@pieWindowId", pieWindowId);
             var dt = await RunQuery(cmd);
             if (!dt.HasRows()) return null;
             var row = dt.Rows[0];
-            int charId = (int)row.GetInt("id")!;
-            string charname = row.GetString("name")!;
-            string serialized = row.GetString("serialized")!;
-            int owner = (int)row.GetInt("owner")!;
-            int? guild = row.GetInt("guild");
-            int? guildrank = row.GetInt("guildrank");
-            return new Tuple<int, string, string, int, int?, int?>(charId, charname, serialized, owner, guild, guildrank);
+
+            DatabaseCharacterInfo charInfo = new() {
+                AccountId = (int)row.GetInt("owner")!,
+                CharId = (int)row.GetInt("id")!,
+                Name = row.GetString("name")!,
+                SerializedCharacter = row.GetString("serialized")!,
+                Guild = row.GetInt("guild"),
+                GuildRank = row.GetInt("guildrank")
+            };
+            return charInfo;
         }
 
         public async Task SaveCharacter(int charId, string serializedCharacter)
@@ -265,8 +302,126 @@ namespace PersistenceServer
             cmd.AddParam("@charId", charId);
             cmd.AddParam("@serializedChar", serializedCharacter);
             int result = await RunNonQuery(cmd);
-            if (result == 1) Console.WriteLine($"Character with id {charId} was saved to DB.");
-            else Console.WriteLine($"Character wasn't saved: {charId}!");
+            if (result == 1) Console.WriteLine($"{DateTime.Now:HH:mm} Character with id {charId} was saved to DB.");
+            else Console.WriteLine($"{DateTime.Now:HH:mm} Character wasn't saved: {charId}!");
+        }
+
+        public async virtual Task<Dictionary<int, Guild>> GetGuilds()
+        {
+            var result = new Dictionary<int, Guild>();
+
+            /*
+             * An example of what we can expect in return:
+             * 
+             * guildId	    guildName			charId		charName 	
+             *    1 		Diamond Dogs 		1 			Arthur Pendragon
+             *    1         Diamond Dogs        2           Raven
+             *    2 		No Dogs 			NULL 		NULL 
+             * 
+             * In this example "Diamond Dogs" has two members: Arthur Pendragon and Raven
+             * The guild "No Dogs" is memberless. It shouldn't happen, but if it does, we'll print a warning.
+             */
+            var cmd = GetCommand(@"
+                SELECT guilds.id as guildId, guilds.name as guildName, characters.id as charId, characters.name as charName, characters.guildRank as guildRank FROM guilds
+                LEFT JOIN characters
+                ON guilds.id = characters.guild
+            ");
+            var dt = await RunQuery(cmd);
+            if (!dt.HasRows()) return result;
+
+            foreach (var row in dt.Rows.OfType<DataRow>())
+            {
+                var guildId = (int)row.GetInt("guildId")!;
+                var guildName = (string)row.GetString("guildName")!;
+                var charId = row.GetInt("charId");
+                var charName = row.GetString("charName");
+                var guildRank = row.GetInt("guildRank");
+                // if the guild hasn't been initialized yet, do so now
+                if (!result.ContainsKey(guildId))
+                {
+                    result.Add(guildId, new Guild(guildId, guildName));
+                }
+                if (charId == null || charName == null)
+                {
+                    Console.WriteLine($"Info: guild \"{guildName}\" (id: {guildId}) is parentless and memberless");
+                    continue;
+                }
+                result[guildId].PopulateMember((int)charId, charName, (int)guildRank!);
+            }
+
+            return result;
+        }
+
+        public async Task PlayerLeavesGuild(int charId)
+        {
+            var cmd = GetCommand("UPDATE `characters` SET `guild` = NULL, `guildRank` = NULL WHERE `characters`.`id` = @charId; ");            
+            cmd.AddParam("@charId", charId);
+            await RunNonQuery(cmd);
+        }
+
+        public async Task DeleteGuild(int guildId)
+        {
+            var cmd = GetCommand("DELETE FROM `guilds` WHERE `guilds`.`id` = @guildId");
+            cmd.AddParam("@guildId", guildId);
+            await RunNonQuery(cmd);
+        }
+
+        public async Task<int> MakeNewGuildMaster(int guildId)
+        {
+            var cmd = GetCommand("SELECT `id` FROM `characters` where `guild` = @guildId ORDER BY `guildrank` ASC LIMIT 0,1 ");
+            cmd.AddParam("@guildId", guildId);
+            var dt = await RunQuery(cmd);
+            var charId = (int)dt.Rows[0].GetInt("id")!;
+
+            var cmd2 = GetCommand("UPDATE `characters` SET `guildRank` = '0' WHERE `id` = @charId");
+            cmd2.AddParam("@charId", charId);
+            await RunNonQuery(cmd2);
+
+            return charId;
+        }
+
+        public async Task UpdateGuildRank(int charId, int rank)
+        {
+            var cmd = GetCommand("UPDATE `characters` SET `guildRank` = @rank WHERE `id` = @charId");
+            cmd.AddParam("@rank", rank);
+            cmd.AddParam("@charId", charId);
+            await RunNonQuery(cmd);
+        }
+
+        public async Task DisbandGuild(int guildId)
+        {
+            var cmd = GetCommand("UPDATE `characters` SET `guild` = NULL, `guildRank` = NULL WHERE `guild` = @guildId");
+            cmd.AddParam("@guildId", guildId);
+            await RunNonQuery(cmd);
+
+            var cmd2 = GetCommand("DELETE FROM `guilds` WHERE `guilds`.`id` = @guildId");
+            cmd2.AddParam("@guildId", guildId);
+            await RunNonQuery(cmd2);
+        }
+
+        public async Task AddGuildMember(int guildId, int memberId, int rank)
+        {
+            var updateCharCmd = GetCommand("UPDATE `characters` SET `guild` = @guildId, `guildRank` = @rank WHERE `characters`.`id` = @charId; ");
+            updateCharCmd.AddParam("@guildId", guildId);
+            updateCharCmd.AddParam("@rank", rank);
+            updateCharCmd.AddParam("@charId", memberId);
+            await RunNonQuery(updateCharCmd);
+        }
+
+        public async Task RemoveGuildMember(int memberId)
+        {
+            var updateCharCmd = GetCommand("UPDATE `characters` SET `guild` = NULL, `guildRank` = NULL WHERE `characters`.`id` = @charId; ");
+            updateCharCmd.AddParam("@charId", memberId);
+            await RunNonQuery(updateCharCmd);
+        }
+
+        public async Task<bool> DeleteCharacter(string charName, int accountId)
+        {
+            var deleteCharCmd = GetCommand("DELETE FROM `characters` WHERE `name` = @charName AND `owner` = @accountId;");
+            deleteCharCmd.AddParam("@charName", charName);
+            deleteCharCmd.AddParam("@accountId", accountId);
+            int result = await RunNonQuery(deleteCharCmd);
+            return (result == 1);
         }
     }
 }

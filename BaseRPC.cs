@@ -1,4 +1,6 @@
-﻿using System.Text;
+﻿using System.Collections;
+using System.Text;
+using Newtonsoft.Json;
 
 namespace PersistenceServer
 {
@@ -55,7 +57,7 @@ namespace PersistenceServer
         // So for example Hello will look as follows:
         // 00000000 00000000 00000000 00000101 (which is 5, the number of bytes in 'Hello')
         // 01001000 01100101 01101100 01101100 01101111 (which is 'Hello' itself)
-        protected static byte[] WriteMmoString(string str)
+        public static byte[] WriteMmoString(string str)
         {
             return MergeByteArrays(ToBytes(Encoding.UTF8.GetBytes(str).Length), Encoding.UTF8.GetBytes(str));
         }
@@ -64,6 +66,13 @@ namespace PersistenceServer
         {
             byte[] bytes = BitConverter.GetBytes(num);
             return bytes;
+        }
+
+        protected static byte[] ToBytes(int[] intArray)
+        {
+            byte[] result = new byte[intArray.Length * sizeof(int)];
+            Buffer.BlockCopy(intArray, 0, result, 0, result.Length);
+            return result;
         }
 
         protected static byte[] ToBytes(float num)
@@ -79,6 +88,11 @@ namespace PersistenceServer
         protected static byte[] ToBytes(bool b)
         {
             return BitConverter.GetBytes(b);
+        }
+
+        protected static string GetGuildMembersJson(Guild guild)
+        {
+            return JsonConvert.SerializeObject(new GuildJson(guild.GetAllMembers()));
         }
     }
 }

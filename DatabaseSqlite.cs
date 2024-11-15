@@ -1,4 +1,5 @@
 ﻿using Microsoft.Data.Sqlite;
+using System.Data;
 using System.Data.Common;
 
 namespace PersistenceServer
@@ -49,6 +50,7 @@ namespace PersistenceServer
                     CREATE TABLE ""guilds"" (
 	                    ""id""	INTEGER NOT NULL UNIQUE,
 	                    ""name""	TEXT UNIQUE,
+                        ""serialized""	TEXT,
 	                    PRIMARY KEY(""id"" AUTOINCREMENT),
 	                    UNIQUE(""name"")
                     );
@@ -60,7 +62,7 @@ namespace PersistenceServer
                         ""owner""	INTEGER,
 	                    ""guild""	INTEGER,
 	                    ""guildrank""	INTEGER,
-	                    ""serialized""	TEXT,	
+	                    ""serialized""	TEXT,
 	                    PRIMARY KEY(""id"" AUTOINCREMENT),
 	                    UNIQUE(""name""),
                         FOREIGN KEY(""owner"") REFERENCES ""accounts""(""id"") ON UPDATE CASCADE ON DELETE SET NULL,
@@ -114,6 +116,94 @@ namespace PersistenceServer
 
             // if everything checks out, allow login by returning user's id
             return id;
+        }
+
+        public override async Task<Guild?> CreateGuild(string guildName, int charId)
+        {
+            // check if guild with this name exists
+            var checkCmd = GetCommand("SELECT * FROM guilds WHERE name = @guildName");
+            checkCmd.AddParam("@guildName", guildName);
+            var dt = await RunQuery(checkCmd);
+            if (dt.HasRows()) {
+                return null;
+            }
+
+            var createGuildCmd = GetCommand("INSERT INTO `guilds` (`id`, `name`) VALUES (NULL, @guildName);");
+            createGuildCmd.AddParam("@guildName", guildName);            
+            int lastInsertedId = await RunInsert(createGuildCmd);
+
+            var updateCharCmd = GetCommand("UPDATE `characters` SET `guild` = @guildId, `guildRank` = '0' WHERE `characters`.`id` = @charId; ");
+            updateCharCmd.AddParam("@guildId", lastInsertedId);
+            updateCharCmd.AddParam("@charId", charId);
+            await RunNonQuery(updateCharCmd);
+            return new Guild(lastInsertedId, guildName);
+        }
+
+        /*
+         * Due to a bug in Microsoft.Data.Sqlite, DataTable.Load preserves UNIQUE constraints from JOIN queries
+         * This makes it impossible to have two rows with the same guild name and it throws an error
+         * I submitted a bug report https://github.com/dotnet/efcore/issues/30765
+         * In the meantime, we manually create DataTable columns for this query specifically, which allows us to bypass the bug
+         */
+        public async override Task<Dictionary<int, Guild>> GetGuilds()
+        {
+            var result = new Dictionary<int, Guild>();
+
+            /*
+             * An example of what we can expect in return:
+             * 
+             * guildId	    guildName			charId		charName 	
+             *    1 		Diamond Dogs 		1 			Arthur Pendragon
+             *    1         Diamond Dogs        2           Raven
+             *    2 		No Dogs 			NULL 		NULL 
+             * 
+             * In this example "Diamond Dogs" has two members: Arthur Pendragon and Raven
+             * The guild "No Dogs" is memberless. It shouldn't happen, but if it does, we'll print a warning.
+             */
+            await using var conn = await GetConnection(ConnectionParams);
+
+            var cmd = GetCommand(@"
+                SELECT guilds.id as guildId, guilds.name as guildName, characters.id as charId, characters.name as charName, characters.guildRank as guildRank FROM guilds
+                LEFT JOIN characters
+                ON guilds.id = characters.guild
+            ", conn);                        
+            await using var reader = await cmd.ExecuteReaderAsync();
+            DataTable dt = new();
+            dt.Columns.Add("guildId", typeof(int));
+            dt.Columns.Add("guildName", typeof(string));
+            dt.Columns.Add("charId", typeof(int));
+            dt.Columns.Add("charName", typeof(string));
+            dt.Columns.Add("guildRank", typeof(int));
+
+            dt.Load(reader);
+            await cmd.DisposeAsync();
+
+            if (!dt.HasRows()) return result;
+
+            //Console.WriteLine("GuildId, GuildName, CharId, CharName, GuildRank");
+            foreach (var row in dt.Rows.OfType<DataRow>())
+            {
+                var guildId = (int)row.GetInt("guildId")!;
+                var guildName = (string)row.GetString("guildName")!;
+                var charId = row.GetInt("charId");
+                var charName = row.GetString("charName");
+                var guildRank = row.GetInt("guildRank");
+                //Console.WriteLine($"{guildId}, {guildName}, {charId}, {charName}, {guildRank}");
+
+                // if the guild hasn't been initialized yet, do so now
+                if (!result.ContainsKey(guildId))
+                {
+                    result.Add(guildId, new Guild(guildId, guildName));
+                }
+                if (charId == null || charName == null)
+                {
+                    Console.WriteLine($"Info: guild \"{guildName}\" (id: {guildId}) is parentless and memberless");
+                    continue;
+                }                
+                result[guildId].PopulateMember((int)charId, charName, (int)guildRank!);
+            }
+
+            return result;
         }
     }
 }

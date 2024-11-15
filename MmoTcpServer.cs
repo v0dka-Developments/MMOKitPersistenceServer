@@ -1,6 +1,8 @@
 ﻿using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection.PortableExecutable;
+using System.Text;
 using NetCoreServer;
 
 namespace PersistenceServer
@@ -54,7 +56,21 @@ namespace PersistenceServer
 
         public void BroadcastAdminMessage(string msg)
         {
-            Multicast(msg);
+            byte[] msgBytes = BaseRpc.WriteMmoString(msg);
+            BinaryReader reader = new(new MemoryStream(msgBytes));
+            // since we're sending it from the console and not from an actual ue5 server, we have to use a little "hack" by finding a random ue5 server connection
+            // if we don't find it, it means there are no servers and therefore no players online, and so we skip broadcasting the message
+            if (GameLogic.GetAllServerConnections().Length > 0)
+                InvokeOnMessageReceived(RpcType.RpcAdminMessage, GameLogic.GetAllServerConnections()[0], reader);
+            else
+                Console.WriteLine("No connected servers and players to send a message to.");
+        }
+
+        public async Task<int> RequestGuilds()
+        {
+            var guilds = await Database.GetGuilds();
+            GameLogic.AssignGuilds(guilds);
+            return guilds.Count;
         }
     }
 }

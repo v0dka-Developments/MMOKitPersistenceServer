@@ -1,0 +1,23 @@
+MMO Kit Persistence Server License Agreement
+
+This License Agreement ("Agreement") governs the use of the C# project (Persistence Server) associated with MMO Kit ("Product") made available by CodeSpartan ("Licensor").
+
+Grant of License:
+- You may use, modify, and extend this C# project ("Software") only if you have legally purchased the "Product" from the Unreal Engine Marketplace (now known as FAB).
+
+Prohibited Uses:
+- You may not use this Software if you have not purchased the Product.
+- You may distribute the Software's source code (in original or modified form), its compiled versions, or its derivative works only if you have purchased the Product.
+
+Ownership:
+- The Software is and remains the property of the Licensor. This Agreement does not grant you any rights to trademarks, patents, or any other intellectual property rights related to the Software, except those expressly granted in this Agreement, as well as the Fab End User License Agreement, which you can find at https://www.fab.com/eula
+
+Disclaimer:
+- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Termination:
+- The license will terminate if you receive a refund for the Product on the Unreal Engine Marketplace (or FAB). Upon termination, you must cease all use of the Software and destroy any copies of it.
+
+By using the Software, you acknowledge that you have read this Agreement, understand it, and agree to be bound by its terms and conditions.
+
+Last updated: November 15, 2024

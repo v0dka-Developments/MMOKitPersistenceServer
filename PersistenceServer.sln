@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.3.32825.248
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PersistenceServer", "PersistenceServer.csproj", "{B2E3CF21-AF7B-4006-BCCA-280AD5C1DF3B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug-Mysql|Any CPU = Debug-Mysql|Any CPU
+		Debug-Sqlite|Any CPU = Debug-Sqlite|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B2E3CF21-AF7B-4006-BCCA-280AD5C1DF3B}.Debug-Mysql|Any CPU.ActiveCfg = Debug-Mysql|Any CPU
+		{B2E3CF21-AF7B-4006-BCCA-280AD5C1DF3B}.Debug-Mysql|Any CPU.Build.0 = Debug-Mysql|Any CPU
+		{B2E3CF21-AF7B-4006-BCCA-280AD5C1DF3B}.Debug-Sqlite|Any CPU.ActiveCfg = Debug-Sqlite|Any CPU
+		{B2E3CF21-AF7B-4006-BCCA-280AD5C1DF3B}.Debug-Sqlite|Any CPU.Build.0 = Debug-Sqlite|Any CPU
+		{B2E3CF21-AF7B-4006-BCCA-280AD5C1DF3B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B2E3CF21-AF7B-4006-BCCA-280AD5C1DF3B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {AD467747-5CE1-4F9A-A4B5-B378CF51186E}
+	EndGlobalSection
+EndGlobal

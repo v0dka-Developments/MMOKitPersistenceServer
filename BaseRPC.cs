@@ -31,7 +31,7 @@ namespace PersistenceServer
         * Technical functions that help serialize messages
         */
 
-        protected static byte[] MergeByteArrays(params object[] list)
+        public static byte[] MergeByteArrays(params object[] list)
         {
             int totalBytesLength = 0;
             for (int i = 0; i < list.Length; i++)
@@ -48,7 +48,7 @@ namespace PersistenceServer
             return result;
         }
 
-        protected static byte[] ToBytes(RpcType rpc)
+        public static byte[] ToBytes(RpcType rpc)
         {
             return new[] { (byte)rpc };
         }
@@ -62,20 +62,20 @@ namespace PersistenceServer
             return MergeByteArrays(ToBytes(Encoding.UTF8.GetBytes(str).Length), Encoding.UTF8.GetBytes(str));
         }
 
-        protected static byte[] ToBytes(int num)
+        public static byte[] ToBytes(int num)
         {
             byte[] bytes = BitConverter.GetBytes(num);
             return bytes;
         }
 
-        protected static byte[] ToBytes(int[] intArray)
+        public static byte[] ToBytes(int[] intArray)
         {
             byte[] result = new byte[intArray.Length * sizeof(int)];
             Buffer.BlockCopy(intArray, 0, result, 0, result.Length);
             return result;
         }
 
-        protected static byte[] ToBytes(float num)
+        public static byte[] ToBytes(float num)
         {
             byte[] bytes = BitConverter.GetBytes(num);
             if (!BitConverter.IsLittleEndian)
@@ -85,7 +85,7 @@ namespace PersistenceServer
             return bytes;
         }
 
-        protected static byte[] ToBytes(bool b)
+        public static byte[] ToBytes(bool b)
         {
             return BitConverter.GetBytes(b);
         }

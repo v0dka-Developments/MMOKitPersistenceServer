@@ -43,5 +43,6 @@
         RpcGuildAdjustRank, // 36
         RpcSaveServerInfo, // 37
         RpcSavePersistentObject, // 38
+        RpcForceDisconnectPlayer, // 39
     }
 }

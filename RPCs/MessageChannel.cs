@@ -14,24 +14,33 @@
         {
             int channel = reader.ReadInt32();
             string message = reader.ReadMmoString();
+            bool talkAsGM = reader.ReadBoolean();
             int maxLength = 255;
             // Trim message by maxLength (255 characters)
             message = message.Length <= maxLength ? message : message[..maxLength]; // .. is a C# 8.0 Range Operator https://www.codeguru.com/csharp/c-8-0-ranges-and-indices-types/
-            Server!.Processor.ConQ.Enqueue(() => ProcessMessage(channel, message, connection));
+            Server!.Processor.ConQ.Enqueue(() => ProcessMessage(channel, message, talkAsGM, connection));
         }
 
-        private void ProcessMessage(int channel, string message, UserConnection connection)
+        private void ProcessMessage(int channel, string message, bool talkAsGM, UserConnection connection)
         {
-            var charName = Server!.GameLogic.GetPlayerName(connection);
-            if (charName == "") return;
+            var sender = Server!.GameLogic.GetPlayerByConnection(connection);
+            if (sender == null) return; // player could've disconnected in the meantime, so we abort
+            var charName = sender.Name;
 
-            // Say channel 0
+            // if talkAsGM is true, but sender is not a GM, simply reset it to false
+            if (talkAsGM && !sender.IsGm())
+            {
+                talkAsGM = false;
+            }
+
+            // Say is channel 0
             // "Say" must only be displayed in vicinity of the person who says it, so we'll tell the game server
             // to multicast it on character, whose netcull distance will be used as vicinity range
             if (channel == 0)
             {
-                Console.WriteLine($"{DateTime.Now:HH:mm} [Say] {charName}: \"{message}\"");
-                byte[] msg = MergeByteArrays(ToBytes(RpcType.RpcMessageChannel), WriteMmoString(charName), WriteMmoString(message));
+                string GM = talkAsGM ? "<GM>" : "";
+                Console.WriteLine($"{DateTime.Now:HH:mm} [Say] {GM}{charName}: \"{message}\"");
+                byte[] msg = MergeByteArrays(ToBytes(RpcType.RpcMessageChannel), WriteMmoString(charName), WriteMmoString(message), ToBytes(talkAsGM));
                 //@TODO: optimize by sending only to the right server
                 foreach(var serverConn in Server!.GameLogic.GetAllServerConnections())
                 {
@@ -39,11 +48,12 @@
                 }
             }
 
-            // Global channel 1
+            // Global is channel 1
             if (channel == 1)
-            {                
-                Console.WriteLine($"{DateTime.Now:HH:mm} [Global] {charName}: \"{message}\"");
-                byte[] msg = MergeByteArrays(ToBytes(RpcType.RpcMessageChannel), ToBytes(channel), WriteMmoString(charName), WriteMmoString(message));
+            {
+                string GM = talkAsGM ? "<GM>" : "";
+                Console.WriteLine($"{DateTime.Now:HH:mm} [Global] {GM}{charName}: \"{message}\"");
+                byte[] msg = MergeByteArrays(ToBytes(RpcType.RpcMessageChannel), ToBytes(channel), WriteMmoString(charName), WriteMmoString(message), ToBytes(talkAsGM));
                 var players = Server!.GameLogic.GetAllPlayerConnections();
                 foreach(var player in players)
                 {

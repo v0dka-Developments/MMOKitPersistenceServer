@@ -1,4 +1,6 @@
-﻿namespace PersistenceServer.RPCs
+﻿using Newtonsoft.Json.Linq;
+
+namespace PersistenceServer.RPCs
 {
     public class CreateCharacter : BaseRpc
     {
@@ -33,7 +35,18 @@
                 connection.Send(errMsg);
                 return;
             }
-            
+
+            // Check if 'NewCharacter' is present in serializedCharacter and is true
+            // Otherwise, an exploit is possible: a tampered packet could add a fully levelled up, fully equipped character into the database
+            JObject jsonObject = JObject.Parse(serializedCharacter);
+            if (!jsonObject.TryGetValue("NewCharacter", out JToken? value) || value.Type != JTokenType.Boolean || !value.ToObject<bool>())
+            {
+                Console.WriteLine("The 'NewCharacter' field is not present or not true in character creation packet. Player attempted to cheat.");
+                byte[] errMsg = MergeByteArrays(ToBytes(RpcType.RpcCreateCharacter), ToBytes(false)); // sending false to signify "failure"
+                connection.Send(errMsg);
+                return;
+            }
+
             int accountId = Server!.GameLogic.GetAccountId(connection);
             if (accountId == -1)
             {
@@ -41,8 +54,15 @@
                 _ = connection.Disconnect(); // not awaited
                 return;
             }
-            Console.Write($"Creating player named: '{playerName}', ");
-            int playerId = await Server!.Database.CreateCharacter(playerName, accountId, serializedCharacter);
+
+            bool gmCharacter = await Server!.Database.IsCharactersTableEmpty();
+            if (gmCharacter)
+            {
+                Console.WriteLine($"No existing characters in the DB. Creating a GM character.");
+            }
+
+            Console.Write($"Creating character named: '{playerName}', ");
+            int playerId = await Server!.Database.CreateCharacter(playerName, accountId, gmCharacter, serializedCharacter);
             Console.WriteLine($"id: {playerId}");
 
             byte[] msg = MergeByteArrays(ToBytes(RpcType.RpcCreateCharacter), ToBytes(true)); // sending false to signify "success"

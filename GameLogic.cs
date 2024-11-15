@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using Microsoft.AspNetCore.Hosting.Server;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 
 namespace PersistenceServer
@@ -46,27 +47,30 @@ namespace PersistenceServer
         }
 
         // Called when the user logs in through the initial menu - he's not in the game world and has no character yet
-        public void UserLoggedIn(int userId, string cookie, UserConnection conn)
+        public void UserLoggedIn(int accountId, string cookie, UserConnection conn)
         {
-            _connectionCookies.Add(cookie, userId);
+            conn.cookie = cookie;
+            _connectionCookies.Add(cookie, accountId);
             if (_accountIdByConnection.Remove(conn)) // remove if key exists
             {
                 Console.WriteLine("User tried to log in twice, we must never reach here");
                 // try to recover
             }
-            _accountIdByConnection.Add(conn, userId);
+            _accountIdByConnection.Add(conn, accountId);
             // if release, don't allow multiple characters from one account
             // but in debug, it's not unexpected, because we may open two windows in PIE and get two characters from the same account
             // @TODO: maybe we should make a bool allowMultipleCharacters and change ConnectionByAccountId to Dictionary<int, List<UserConnection>>
 #if RELEASE
-            if (_connectionByAccountId.TryGetValue(userId, out var oldConn))
+            if (_connectionByAccountId.TryGetValue(accountId, out var oldConn))
             {
+                InvalidateCookieForConnection(oldConn);
+                DisconnectPlayerFromAllGameServers(oldConn);
                 _ = oldConn.Disconnect(); // not awaited
-                UserDisconnected(oldConn); // fire this immediately
+                UserDisconnected(oldConn); // fire this immediately, because otherwise it would fire too late due to threads jumping
             }
 #else
-            if (!_connectionByAccountId.ContainsKey(userId))
-                _connectionByAccountId.Add(userId, conn);
+            if (!_connectionByAccountId.ContainsKey(accountId))
+                _connectionByAccountId.Add(accountId, conn);
 #endif
         }
 
@@ -107,16 +111,17 @@ namespace PersistenceServer
 
         // Called when the user connects from the game world - he now has a character
         public void UserReconnected(UserConnection newConn, DatabaseCharacterInfo charInfo)
-        {
+        {            
             if (_connectionByAccountId.TryGetValue(charInfo.AccountId, out var oldConn))
             {
-                // if release, don't allow multiple characters from one account
-                // but in debug, it's not unexpected, because we may open two windows in PIE and get two characters from the same account
+                // If RELEASE, we don't allow multiple characters from one account
+                // But in debug, it's not unexpected, because we may open two windows in PIE and get two characters from the same account
                 // @TODO: maybe we should make a bool allowMultipleCharacters and change ConnectionByAccountId to Dictionary<int, List<UserConnection>>
 #if RELEASE
+                InvalidateCookieForConnection(oldConn);
+                DisconnectPlayerFromAllGameServers(oldConn);
                 _ = oldConn.Disconnect(); // not awaited
                 UserDisconnected(oldConn); // fire this immediately, because otherwise it would fire too late due to threads jumping
-                //@TODO: tell servers to disconnect this charInfo.AccountId!
 
                 _accountIdByConnection.Add(newConn, charInfo.AccountId);
                 _connectionByAccountId.Add(charInfo.AccountId, newConn);
@@ -126,10 +131,10 @@ namespace PersistenceServer
                 _accountIdByConnection.Add(newConn, charInfo.AccountId);
                 _connectionByAccountId.Add(charInfo.AccountId, newConn);
             }
-            
+
             _connectionByCharId.Add(charInfo.CharId, newConn);
             _charIdByConnection.Add(newConn, charInfo.CharId);
-            Player newPlayer = new(newConn, charInfo.AccountId, charInfo.CharId, charInfo);
+            Player newPlayer = new(newConn, charInfo);
             _playersByConnection.Add(newConn, newPlayer);
             _playersByName.Add(charInfo.Name, newPlayer);
             if (charInfo.Guild != null)
@@ -179,6 +184,23 @@ namespace PersistenceServer
         public UserConnection[] GetAllServerConnections()
         {
             return _gameServers.Keys.ToArray();
+        }
+
+        public void DisconnectPlayerFromAllGameServers(UserConnection conn)
+        {            
+            if (_charIdByConnection.TryGetValue(conn, out var oldCharId))
+            {
+                byte[] msgToServers = BaseRpc.MergeByteArrays(BaseRpc.ToBytes(RpcType.RpcForceDisconnectPlayer), BaseRpc.ToBytes(oldCharId));
+                foreach (var serverConn in GetAllServerConnections())
+                {
+                    serverConn.Send(msgToServers);
+                }
+            }
+        }
+
+        public void InvalidateCookieForConnection(UserConnection conn)
+        {
+            _connectionCookies.Remove(conn.cookie);
         }
 
         public Guild? GetPlayerGuild(UserConnection conn)

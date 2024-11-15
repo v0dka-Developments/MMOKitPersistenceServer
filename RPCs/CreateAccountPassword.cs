@@ -25,12 +25,12 @@
             if (!await Server!.Database.DoesAccountExist(accountName))
             {
                 Console.Write($"Creating account for user: '{accountName}', ");
-                int userId = await Server!.Database.CreateUserAccount(accountName, password);
-                Console.WriteLine($"id: {userId}");
+                int accountId = await Server!.Database.CreateUserAccount(accountName, password);
+                Console.WriteLine($"id: {accountId}");
 
                 // don't ask the user to log in after creating the account, consider him logged in
                 var cookie = BCrypt.Net.BCrypt.GenerateSalt();
-                Server!.GameLogic.UserLoggedIn(userId, cookie, connection);
+                Server!.GameLogic.UserLoggedIn(accountId, cookie, connection);
 
                 // sending true to signify "success", plus a cookie
                 // the cookie will allow a reconnection later, when the user changes the level to enter the game server

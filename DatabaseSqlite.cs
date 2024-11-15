@@ -62,6 +62,7 @@ namespace PersistenceServer
                         ""owner""	INTEGER,
 	                    ""guild""	INTEGER,
 	                    ""guildrank""	INTEGER,
+                        ""permissions"" INTEGER NOT NULL DEFAULT 0,
 	                    ""serialized""	TEXT,
 	                    PRIMARY KEY(""id"" AUTOINCREMENT),
 	                    UNIQUE(""name""),

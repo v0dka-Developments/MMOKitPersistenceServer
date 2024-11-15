@@ -39,7 +39,7 @@
 
             Console.WriteLine($"{DateTime.Now:HH:mm} [Guild Officer ({guild.Id})] {charName}: \"{message}\"");
             // Channel 7 is guild officer channel, see EChatMsgChannel in ue5
-            byte[] msg = MergeByteArrays(ToBytes(RpcType.RpcMessageChannel), ToBytes(7), WriteMmoString(charName), WriteMmoString(message));
+            byte[] msg = MergeByteArrays(ToBytes(RpcType.RpcMessageChannel), ToBytes(7), WriteMmoString(charName), WriteMmoString(message), ToBytes(false) /*not a GM message*/);
             var players = guild.GetOnlineOfficers(Server.Settings.GuildOfficerRank);
             foreach (var player in players)
             {

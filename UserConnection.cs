@@ -10,6 +10,7 @@ namespace PersistenceServer
         private readonly MmoWsServer _mmoWsServer;
         private readonly WebSocket _webSocket;
         public Guid Id { get; private set; }
+        public string cookie { get; set;  }
 
         // The maximum allowable message size (e.g., 1 MB)
         const long MaxMessageSize = 1 * 1024 * 1024; // 1 MB
@@ -19,6 +20,7 @@ namespace PersistenceServer
             _mmoWsServer = server;
             _webSocket = webSocket;
             Id = Guid.NewGuid();
+            cookie = "";
         }
 
         public async Task HandleConnectionAsync()
@@ -97,6 +99,7 @@ namespace PersistenceServer
             {
                 // Handle potential exceptions during WebSocket communication.
                 Console.WriteLine($"WebSocket session caught an error: {ex.Message}");
+                InvokeOnDisconnected();
             }
         }
 

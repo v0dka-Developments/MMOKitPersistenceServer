@@ -34,7 +34,7 @@ namespace PersistenceServer.RPCs
 
             Console.WriteLine($"{DateTime.Now:HH:mm} [Guild ({guild.Id})] {charName}: \"{message}\"");
             // Channel 5 is guild channel, see EChatMsgChannel in ue5
-            byte[] msg = MergeByteArrays(ToBytes(RpcType.RpcMessageChannel), ToBytes(5), WriteMmoString(charName), WriteMmoString(message));
+            byte[] msg = MergeByteArrays(ToBytes(RpcType.RpcMessageChannel), ToBytes(5), WriteMmoString(charName), WriteMmoString(message), ToBytes(false) /*not a GM message*/);
             var players = guild.GetOnlineMembers();
             foreach (var player in players)
             {

@@ -21,13 +21,13 @@
 
         private async Task ProcessLogin(string accountName, string password, UserConnection connection)
         {
-            int userId = await Server!.Database.LoginUser(accountName, password); // returns -1 if login failed
+            int accountId = await Server!.Database.LoginUser(accountName, password); // returns -1 if login failed
             // if account exists
-            if (userId >= 0)
+            if (accountId >= 0)
             {
-                Console.WriteLine($"Logging in: '{accountName}', id: {userId}");
+                Console.WriteLine($"Logging in: '{accountName}', id: {accountId}");
                 var cookie = BCrypt.Net.BCrypt.GenerateSalt();
-                Server!.GameLogic.UserLoggedIn(userId, cookie, connection);
+                Server!.GameLogic.UserLoggedIn(accountId, cookie, connection);
 
                 // sending true to signify "success", plus a cookie
                 // the cookie will allow a reconnection later, when the user changes the level to enter the game server

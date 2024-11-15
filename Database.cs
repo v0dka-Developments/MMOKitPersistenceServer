@@ -11,9 +11,10 @@ namespace PersistenceServer
         public int AccountId;
         public int CharId;
         public string Name = "";
+        public int Permissions;
         public string SerializedCharacter = "";
         public int? Guild;
-        public int? GuildRank;
+        public int? GuildRank;        
     }
 
     public abstract class Database
@@ -203,11 +204,12 @@ namespace PersistenceServer
             return dt.HasRows();
         }
 
-        public virtual async Task<int> CreateCharacter(string charName, int ownerAccountId, string serializedCharacter)
+        public virtual async Task<int> CreateCharacter(string charName, int ownerAccountId, bool gmCharacter, string serializedCharacter)
         {
-            var cmd = GetCommand("INSERT INTO `characters` (`id`, `name`, `owner`, `guild`, `guildrank`, `serialized`) VALUES (NULL, @charName, @ownerAccountId, NULL, NULL, @serialized);");
+            var cmd = GetCommand("INSERT INTO `characters` (`id`, `name`, `owner`, `guild`, `guildrank`, `permissions`, `serialized`) VALUES (NULL, @charName, @ownerAccountId, NULL, NULL, @permissions, @serialized);");
             cmd.AddParam("@charName", charName);
             cmd.AddParam("@ownerAccountId", ownerAccountId);
+            cmd.AddParam("@permissions", gmCharacter ? 10 : 0); // GM gets permissions 10, player gets 0, feel free to change it
             cmd.AddParam("@serialized", serializedCharacter);
             int lastInsertedId = await RunInsert(cmd);
             return lastInsertedId;
@@ -227,6 +229,7 @@ namespace PersistenceServer
                     AccountId = (int)row.GetInt("owner")!,
                     CharId = (int)row.GetInt("id")!,
                     Name = row.GetString("name")!,
+                    Permissions = (int)row.GetInt("permissions")!,
                     SerializedCharacter = row.GetString("serialized")!,
                     Guild = row.GetInt("guild"),
                     GuildRank = row.GetInt("guildrank")
@@ -237,7 +240,7 @@ namespace PersistenceServer
             return result;
         }
 
-        /* Returns: name, serialized, guild, guildrank */
+        /* Returns: name, permissions, serialized, guild, guildrank */
         public virtual async Task<DatabaseCharacterInfo?> GetCharacter(int charId, int accountId)
         {
             var cmd = GetCommand("SELECT * FROM characters WHERE id = @charId and owner = @accountId");
@@ -251,14 +254,15 @@ namespace PersistenceServer
                 AccountId = (int)row.GetInt("owner")!,
                 CharId = (int)row.GetInt("id")!,
                 Name = row.GetString("name")!,
+                Permissions = (int)row.GetInt("permissions")!,
                 SerializedCharacter = row.GetString("serialized")!,
                 Guild = row.GetInt("guild"),
-                GuildRank = row.GetInt("guildrank")
+                GuildRank = row.GetInt("guildrank")                
             };
             return character;
         }
 
-        /* Returns: name, serialized, guild, guildrank */
+        /* Returns: name, permissions, serialized, guild, guildrank */
         public virtual async Task<DatabaseCharacterInfo?> GetCharacterByName(string charName, int accountId)
         {
             var cmd = GetCommand("SELECT * FROM characters WHERE name = @charName and owner = @accountId");
@@ -268,11 +272,11 @@ namespace PersistenceServer
             if (!dt.HasRows()) return null;
             var row = dt.Rows[0];
 
-            DatabaseCharacterInfo character = new()
-            {
+            DatabaseCharacterInfo character = new() {
                 AccountId = (int)row.GetInt("owner")!,
                 CharId = (int)row.GetInt("id")!,
                 Name = row.GetString("name")!,
+                Permissions = (int)row.GetInt("permissions")!,
                 SerializedCharacter = row.GetString("serialized")!,
                 Guild = row.GetInt("guild"),
                 GuildRank = row.GetInt("guildrank")
@@ -292,6 +296,7 @@ namespace PersistenceServer
                 AccountId = (int)row.GetInt("owner")!,
                 CharId = (int)row.GetInt("id")!,
                 Name = row.GetString("name")!,
+                Permissions = (int)row.GetInt("permissions")!,
                 SerializedCharacter = row.GetString("serialized")!,
                 Guild = row.GetInt("guild"),
                 GuildRank = row.GetInt("guildrank")
@@ -471,6 +476,18 @@ namespace PersistenceServer
             cmd.AddParam("@port", port);            
             cmd.AddParam("@objectId", objectId);
             await RunNonQuery(cmd);
+        }
+        
+        public async Task<bool> IsCharactersTableEmpty()
+        {
+            // A cheap way to check if a table is empty, without counting rows
+            // If it's empty, it returns 0
+            // If it's not empty, it returns 1
+            var cmd = GetCommand("SELECT EXISTS(SELECT 1 FROM characters LIMIT 1) as result;");
+            var dt = await RunQuery(cmd);
+            if (!dt.HasRows()) return false;
+            var result = (int)dt.Rows[0].GetInt("result")!;
+            return (result == 0);
         }
     }
 }

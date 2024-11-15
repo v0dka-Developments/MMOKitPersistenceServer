@@ -47,8 +47,8 @@
                 return;
             }
 
-            var character = await Server!.Database.GetCharacter(charId, accountId);
-            if (character == null)
+            var charInfo = await Server!.Database.GetCharacter(charId, accountId);
+            if (charInfo == null)
             {
                 Console.WriteLine("GetCharacter failed: user provided bad char id!");
                 byte[] msg = MergeByteArrays(ToBytes(RpcType.RpcGetCharacter), ToBytes(false)); // this will tell the game server to disconnect this user
@@ -58,15 +58,8 @@
 
             //@TODO: have a bool for allowMultipleCharacters and if it's false or if we're in DEBUG, then tell the game servers to disconnect the oldest character from account ID
 
-            byte[] binAccountId = ToBytes(accountId);
-            byte[] binCharId = ToBytes(charId);
-            byte[] binCharname = WriteMmoString(character.Name);
-            byte[] binSerialized = WriteMmoString(character.SerializedCharacter);
-            byte[] binGuild = ToBytes(character.Guild ?? -1);
-            byte[] binGuildrank = ToBytes(character.GuildRank ?? -1);
-            Console.WriteLine($"GetCharacter processed for: {character.Name}");
-            byte[] msgSuccess = MergeByteArrays(ToBytes(RpcType.RpcGetCharacter), ToBytes(true), binAccountId, binCharId, binCharname, binSerialized, binGuild, binGuildrank);
-            connection.Send(msgSuccess);
+            Console.WriteLine($"GetCharacter processed for: {charInfo.Name}");
+            SendCharinfoToConnection(charInfo, connection);
         }
 
         private async Task ProcessGetCharacterForPie(int pieWindowId, UserConnection connection)
@@ -79,14 +72,20 @@
                 connection.Send(msg);
                 return;
             }
+            Console.WriteLine($"GetCharacter processed for account: {charInfo.AccountId}, character: {charInfo.Name}");
+            SendCharinfoToConnection(charInfo, connection);
+        }
+
+        private void SendCharinfoToConnection(DatabaseCharacterInfo charInfo, UserConnection connection)
+        {
             byte[] binAccountId = ToBytes(charInfo.AccountId);
             byte[] binCharId = ToBytes(charInfo.CharId);
             byte[] binCharname = WriteMmoString(charInfo.Name);
             byte[] binSerialized = WriteMmoString(charInfo.SerializedCharacter);
+            byte[] binPermissions = ToBytes(charInfo.Permissions);
             byte[] binGuild = ToBytes(charInfo.Guild ?? -1);
-            byte[] binGuildrank = ToBytes(charInfo.GuildRank ?? -1);
-            Console.WriteLine($"GetCharacter processed for account: {charInfo.AccountId}, character: {charInfo.Name}");
-            byte[] msgSuccess = MergeByteArrays(ToBytes(RpcType.RpcGetCharacter), ToBytes(true), binAccountId, binCharId, binCharname, binSerialized, binGuild, binGuildrank);
+            byte[] binGuildrank = ToBytes(charInfo.GuildRank ?? -1);            
+            byte[] msgSuccess = MergeByteArrays(ToBytes(RpcType.RpcGetCharacter), ToBytes(true), binAccountId, binCharId, binCharname, binPermissions, binSerialized, binGuild, binGuildrank);
             connection.Send(msgSuccess);
         }
     }

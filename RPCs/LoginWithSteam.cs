@@ -126,12 +126,12 @@ namespace PersistenceServer.RPCs
 
             // retrieves user id from steamid in the database, or creates a steam account if it doesn't exist
             // returns -1 if login failed, due to bad account status            
-            int userId = await Server!.Database.LoginSteamUser(steamId);
-            if (userId >= 0)
+            int accountId = await Server!.Database.LoginSteamUser(steamId);
+            if (accountId >= 0)
             {
-                Console.WriteLine($"Steam login successful for Steamid: {steamId}, userid: {userId}");
+                Console.WriteLine($"Steam login successful for Steamid: {steamId}, userid: {accountId}");
                 var cookie = BCrypt.Net.BCrypt.GenerateSalt();
-                Server!.GameLogic.UserLoggedIn(userId, cookie, connection);
+                Server!.GameLogic.UserLoggedIn(accountId, cookie, connection);
 
                 // sending true to signify "success", plus a cookie
                 // the cookie will allow a reconnection later, when the user changes the level to enter the game server

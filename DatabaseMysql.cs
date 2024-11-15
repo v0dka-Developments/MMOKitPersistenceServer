@@ -77,6 +77,7 @@ namespace PersistenceServer
                         owner int,
 	                    guild int,
 	                    guildrank int,
+                        permissions int NOT NULL DEFAULT '0',
 	                    serialized text,
 	                    PRIMARY KEY (id),
 	                    UNIQUE INDEX NAME (name),

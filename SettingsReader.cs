@@ -14,13 +14,14 @@ namespace PersistenceServer
     {
         public readonly SqlType SqlType;
         public readonly int Port;
-        public readonly string GameServerIp;
+        public readonly string PersistenceServerIP;
         public readonly string ServerPassword; // password with which game servers can log in
         public readonly string UniversalCookie; // cookie used by clients connecting from PIE, who subsequently don't have a valid cookie, but still need a character
         public readonly string SteamWebApiKey;
         public readonly string SteamAppId;
         public readonly int DefaultGuildRank;
         public readonly int GuildOfficerRank;
+        public readonly int PartyMaxSize;
 
         public readonly string? MysqlHost;
         public readonly int? MysqlPort;
@@ -39,6 +40,8 @@ namespace PersistenceServer
             Port = int.Parse(data["General"]["port"]);
             DefaultGuildRank = int.Parse(data["General"]["DefaultGuildRank"]);
             GuildOfficerRank = int.Parse(data["General"]["GuildOfficerRank"]);
+            PartyMaxSize = int.Parse(data["General"]["PartyMaxSize"]);
+
             var dms = data["General"]["dms"];
 #if DEBUG_MYSQL
             dms = "mysql";
@@ -47,11 +50,8 @@ namespace PersistenceServer
 #endif
             Console.WriteLine($"DB system: {dms}");
 
-            GameServerIp = data["General"]["GameServerIP"];
-#if DEBUG
-            GameServerIp = "127.0.0.1";
-#endif
-            Console.WriteLine("Game Server IP: " + GameServerIp);
+            PersistenceServerIP = data["General"]["PersistenceServerIP"];
+            Console.WriteLine("Persistence Server IP: " + PersistenceServerIP);
 
             ServerPassword = data["General"]["ServerPassword"];
             UniversalCookie = data["General"]["UniversalCookie"];

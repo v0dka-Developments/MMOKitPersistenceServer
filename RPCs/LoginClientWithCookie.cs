@@ -46,7 +46,7 @@ namespace PersistenceServer.RPCs
             var charInfo = await Server!.Database.GetCharacter(charId, accountId);
             if (charInfo != null)
             {
-                Console.WriteLine($"{DateTime.Now:HH:mm} Client relogged with character: {charInfo.Name}");
+                Console.WriteLine($"{DateTime.Now:HH:mm} Client (IP: {connection.Ip}) relogged with character: {charInfo.Name}");
                 ProcessLogin(charInfo, connection);
             }
             else
@@ -76,7 +76,7 @@ namespace PersistenceServer.RPCs
 
         private void ProcessLogin(DatabaseCharacterInfo charInfo, UserConnection connection)
         {
-            Server!.GameLogic.UserReconnected(connection, charInfo);
+            var player = Server!.GameLogic.UserReconnected(connection, charInfo);
             // if this char is in a guild
             // 1. send him the full guild roster
             // 2. tell all servers what this guy's guild is
@@ -87,7 +87,7 @@ namespace PersistenceServer.RPCs
                 if (guild != null)
                 {
                     // 1. send him the full guild roster
-                    byte[] msg = MergeByteArrays(ToBytes(RpcType.RpcGuildAllMembersUpdate), WriteMmoString(GetGuildMembersJson(guild)));
+                    byte[] msg = MergeByteArrays(ToBytes(RpcType.RpcGuildAllMembersUpdate), WriteMmoString(guild.GetGuildMembersJson()));
                     connection.Send(msg);
 
                     // 2. send message to all servers that a character with a certain id belongs to a guild with a certain id & name
@@ -107,6 +107,18 @@ namespace PersistenceServer.RPCs
                         if (onlineMember.Conn == connection) continue;
                         onlineMember.Conn.Send(msgToGuildies);
                     }
+                }
+            }
+            // if this char is in a party, restore his party ref and send full party info to all online party members
+            string? partyId = Server!.GameLogic.GetStoredDisconnectedPlayerPartyId(charInfo.CharId);
+            if (partyId != null)
+            {
+                var partyRef = Server!.GameLogic.GetPartyById(partyId);
+                if (partyRef != null)
+                {
+                    Server!.GameLogic.UnstoreDisconnectedPlayerPartyId(charInfo.CharId);
+                    player.PartyRef = partyRef;
+                    partyRef.SendFullPartyToInvolvedServers();
                 }
             }
         }

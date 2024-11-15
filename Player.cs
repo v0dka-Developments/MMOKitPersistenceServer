@@ -15,8 +15,10 @@ namespace PersistenceServer
         public int GuildId; // -1 for guildless
         public int GuildRank; // -1 for guildless
         public int Permissions; // 0 for player, 10 for GM, but this can be changed in Server!.Database.CreateCharacter
+        public Party? PartyRef;
+        public string PartyId { get { return PartyRef != null ? PartyRef.Id : ""; } }
 
-        private PlayerInvitation? invite = null;
+        private PendingInvitation? invite = null;
 
         public Player(UserConnection conn, DatabaseCharacterInfo dbPlayer)
         {
@@ -34,13 +36,13 @@ namespace PersistenceServer
             return Permissions > 0;
         }
 
-        // if last invite was issued less than 30 seconds ago, player has a pending invite
+        // if last invite is valid and was issued less than 30 seconds ago, player has a pending invite
         public bool HasPendingInvite()
         {
-            return invite != null ? (DateTime.Now - invite.timeInvited).TotalSeconds < 30 : false;
+            return invite != null && (DateTime.Now - invite.timeInvited).TotalSeconds < 30;
         }
 
-        public PlayerInvitation? GetPendingInvite()
+        public PendingInvitation? GetPendingInvite()
         {
             return invite;
         }
@@ -50,19 +52,24 @@ namespace PersistenceServer
             invite = new GuildInvitation(inviterName, guildId);
         }
 
+        public void SetInviteToParty(string inviterName, string partyId)
+        {
+            invite = new PartyInvitation(inviterName, partyId);
+        }
+
         public void ClearPendingInvite()
         {
             invite = default;
         }
     }
 
-    public abstract class PlayerInvitation
+    public abstract class PendingInvitation
     {
         public DateTime timeInvited = default; // default is 1/1/0001 12:00:00 AM
         public string inviterName = "";
     }
 
-    public class GuildInvitation : PlayerInvitation
+    public class GuildInvitation : PendingInvitation
     {
         public int guildId;
         public GuildInvitation(string inInviter, int inGuildId)
@@ -73,10 +80,10 @@ namespace PersistenceServer
         }
     }
 
-    public class PartyInvitation : PlayerInvitation
+    public class PartyInvitation : PendingInvitation
     {
-        public int partyId;
-        public PartyInvitation(string inInviter, int inPartyId) {
+        public string partyId; // party id is an empty string if the inviter isn't in a party yet
+        public PartyInvitation(string inInviter, string inPartyId) {
             timeInvited = DateTime.Now;
             inviterName = inInviter;
             partyId = inPartyId;

@@ -12,9 +12,9 @@
         RpcMessagePlayer, // 8
         RpcMessageParty, // 9
         RpcMessageGuild, // 10
-        RpcGroupInvite, // 11
-        RpcGroupLeave, // 12
-        RpcGroupKick, // 13
+        RpcUnused1, // 11
+        RpcUnused2, // 12
+        RpcUnused3, // 13
         RpcAcceptInvite, // 14
         RpcDeclineInvite, // 15
         RpcGuildCreate, // 16
@@ -44,5 +44,13 @@
         RpcSaveServerInfo, // 37
         RpcSavePersistentObject, // 38
         RpcForceDisconnectPlayer, // 39
+        RpcPartyInvite, // 40
+        RpcPartyLeave, // 41
+        RpcPartyChangeLeader, // 42
+        RpcPartyKick, // 43
+        RpcPartyDisband, // 44
+        RpcPartyFullInfo, // 45
+        RpcPartyJoin, // 46
+        RpcPartyMembersSync, // 47
     }
 }

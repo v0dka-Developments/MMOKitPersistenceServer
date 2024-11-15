@@ -56,7 +56,7 @@ namespace PersistenceServer.RPCs
 
             // replicate to all members the message about a kick
             // replicate to all members a new roster
-            byte[] msgNewRoster = MergeByteArrays(ToBytes(RpcType.RpcGuildAllMembersUpdate), WriteMmoString(GetGuildMembersJson(guild)));
+            byte[] msgNewRoster = MergeByteArrays(ToBytes(RpcType.RpcGuildAllMembersUpdate), WriteMmoString(guild.GetGuildMembersJson()));
             byte[] msgCharLeft = MergeByteArrays(ToBytes(RpcType.RpcGuildKick), ToBytes(true), WriteMmoString(kickedGuildMember.MemberName)); // true means it's another player and not you
             foreach (var member in guild.GetOnlineMembers())
             {

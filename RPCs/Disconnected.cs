@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
+using System.Threading.Channels;
 
 namespace PersistenceServer.RPCs
 {
@@ -24,9 +26,15 @@ namespace PersistenceServer.RPCs
             var player = Server!.GameLogic.GetPlayerByConnection(conn);
 
             if (player != null)
+            {
                 Console.WriteLine($"{DateTime.Now:HH:mm} {player.Name} went offline.");
+            }
             else
+            {
                 Console.WriteLine($"{DateTime.Now:HH:mm} User disconnected. Session Id: {conn.Id}");
+                Server!.GameLogic.UserDisconnected(conn);
+                return;
+            }
 
             var guild = Server!.GameLogic.GetPlayerGuild(conn);
             if (guild != null && player != null)
@@ -42,7 +50,27 @@ namespace PersistenceServer.RPCs
                 }
             }
 
-            Server!.GameLogic.UserDisconnected(conn);            
+            var charId = player!.CharId;
+            var party = player.PartyRef;
+
+            Server!.GameLogic.UserDisconnected(conn);
+            
+            if (party != null)
+            {
+                Server!.GameLogic.StoreDisconnectedPlayerPartyId(charId, party.Id);
+
+                // if party still has online members send a new full party info to the remaining players
+                if (party.HasOnlineMembers())
+                {
+                    party.SendFullPartyToInvolvedServers();
+                }
+                // if party has no currently online members, disband the party
+                else
+                {
+                    // this will send the info to servers too
+                    // party.DisbandParty();
+                }                
+            }
         }
     }
 }

@@ -52,7 +52,7 @@ namespace PersistenceServer.RPCs
             playerConn.Send(msgToClient);
 
             // send the newly created guild roster to all the members (in this case just one character to himself)
-            byte[] msgNewRoster = MergeByteArrays(ToBytes(RpcType.RpcGuildAllMembersUpdate), WriteMmoString(GetGuildMembersJson(guild)));
+            byte[] msgNewRoster = MergeByteArrays(ToBytes(RpcType.RpcGuildAllMembersUpdate), WriteMmoString(guild.GetGuildMembersJson()));
             foreach (var member in guild.GetOnlineMembers())
             {
                 member.Conn.Send(msgNewRoster);

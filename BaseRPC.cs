@@ -89,10 +89,5 @@ namespace PersistenceServer
         {
             return BitConverter.GetBytes(b);
         }
-
-        protected static string GetGuildMembersJson(Guild guild)
-        {
-            return JsonConvert.SerializeObject(new GuildJson(guild.GetAllMembers()));
-        }
     }
 }

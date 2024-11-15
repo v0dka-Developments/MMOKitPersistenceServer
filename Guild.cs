@@ -10,19 +10,19 @@ namespace PersistenceServer
     public class GuildJson
     {
         [JsonProperty]
-        public GuildMember[] Members;
+        public GuildMember[] Members { get; set; }
         public GuildJson(GuildMember[] members) { Members = members; }
     }
     public class GuildMember
     {
         [JsonProperty]
-        public int Id;
+        public int Id { get; set; }
         [JsonProperty]
-        public string MemberName;
+        public string MemberName { get; set; }
         [JsonProperty]
-        public int GuildRank;
+        public int GuildRank { get; set; }
         [JsonProperty]
-        public bool Online;
+        public bool Online { get; set; }
         public GuildMember(int id, string name, int guildRank, bool online)
         {
             Id = id;
@@ -125,6 +125,11 @@ namespace PersistenceServer
                 }
                 return result;
             }
-        }        
+        }
+
+        public string GetGuildMembersJson()
+        {
+            return JsonConvert.SerializeObject(new GuildJson(GetAllMembers()));
+        }
     }
 }

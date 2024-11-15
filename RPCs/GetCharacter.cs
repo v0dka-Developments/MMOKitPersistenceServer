@@ -32,7 +32,7 @@
         {
             if (!Server!.GameLogic.IsServer(connection))
             {
-                Console.WriteLine("Illegal action: not a server tried GetCharacter RPC. This must never happen: investigate if it does.");
+                Console.WriteLine("Illegal action: a client (not a server!) tried GetCharacter RPC. This must never happen: investigate if it does.");
                 byte[] msg = MergeByteArrays(ToBytes(RpcType.RpcGetCharacter), ToBytes(false));
                 connection.Send(msg);
                 return;
@@ -59,6 +59,7 @@
             //@TODO: have a bool for allowMultipleCharacters and if it's false or if we're in DEBUG, then tell the game servers to disconnect the oldest character from account ID
 
             Console.WriteLine($"GetCharacter processed for: {charInfo.Name}");
+            Server!.GameLogic.SetPlayersServer(charInfo.CharId, connection.Id.ToString());
             SendCharinfoToConnection(charInfo, connection);
         }
 
@@ -73,6 +74,7 @@
                 return;
             }
             Console.WriteLine($"GetCharacter processed for account: {charInfo.AccountId}, character: {charInfo.Name}");
+            Server!.GameLogic.SetPlayersServer(charInfo.CharId, connection.Id.ToString());
             SendCharinfoToConnection(charInfo, connection);
         }
 

@@ -78,7 +78,7 @@
             // replicate to all remaining guild members a new list of guild members
             // if you wish to optimize it, you could do it in an additive way, i.e. just send a "MemberLeft" and his id, same with MemberJoined, MemberOnline, MemberOffline, and RankUpdate
             // but I don't think it's worth the trouble
-            byte[] msgNewRoster = MergeByteArrays(ToBytes(RpcType.RpcGuildAllMembersUpdate), WriteMmoString(GetGuildMembersJson(guild)));
+            byte[] msgNewRoster = MergeByteArrays(ToBytes(RpcType.RpcGuildAllMembersUpdate), WriteMmoString(guild.GetGuildMembersJson()));
             byte[] msgCharLeft = MergeByteArrays(ToBytes(RpcType.RpcGuildLeave), ToBytes(false), WriteMmoString(player.Name)); // false means it's another player who left, and the string is his name
             foreach (var member in guild.GetOnlineMembers())
             {

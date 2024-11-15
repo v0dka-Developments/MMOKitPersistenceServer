@@ -1,6 +1,5 @@
-﻿using System.Net.Sockets;
+﻿using System.Net;
 using System.Net.WebSockets;
-using System.Reflection.PortableExecutable;
 using System.Text;
 
 namespace PersistenceServer
@@ -10,17 +9,19 @@ namespace PersistenceServer
         private readonly MmoWsServer _mmoWsServer;
         private readonly WebSocket _webSocket;
         public Guid Id { get; private set; }
-        public string cookie { get; set;  }
+        public string Cookie { get; set;  }
+        public IPAddress Ip { get; set; }
 
         // The maximum allowable message size (e.g., 1 MB)
         const long MaxMessageSize = 1 * 1024 * 1024; // 1 MB
 
-        public UserConnection(MmoWsServer server, WebSocket webSocket)
+        public UserConnection(MmoWsServer server, WebSocket webSocket, IPAddress ip)
         {
             _mmoWsServer = server;
             _webSocket = webSocket;
             Id = Guid.NewGuid();
-            cookie = "";
+            Cookie = "";
+            Ip = ip;
         }
 
         public async Task HandleConnectionAsync()
@@ -32,7 +33,7 @@ namespace PersistenceServer
             // if the message exceeds the buffer, it'll be accumulated until it's fully received
             // if it exceeds maximum size during accumulation, the user gets disconnected
             var buffer = new ArraySegment<byte>(new byte[2048]);
-            MemoryStream messageStream = new MemoryStream();
+            MemoryStream messageStream = new();
 
             try
             {

@@ -2,7 +2,9 @@
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
+using Newtonsoft.Json;
 using System.Text;
+
 
 namespace PersistenceServer
 {
@@ -166,7 +168,7 @@ namespace PersistenceServer
          * though I'm not sure why it's recommended to store BCrypt hashes as binary arrays (sqlite doesn't even have them)
          * If you know something about it, let me know. */
         public abstract Task<int> LoginUser(string accountName, string password);
-
+       
         public virtual async Task<int> LoginSteamUser(string steamId)
         {
             var cmd = GetCommand("SELECT id, status FROM accounts WHERE steamid = @steamId");
@@ -489,5 +491,494 @@ namespace PersistenceServer
             var result = (int)dt.Rows[0].GetInt("result")!;
             return (result == 0);
         }
+
+       
+        /*
+         *  ==================================================================
+         *  ==================================================================
+         *  ==================================================================
+         *  ==================================================================
+         *  ==================================================================
+         *                        web interface related
+         *  ==================================================================
+         *  ==================================================================
+         *  ==================================================================
+         *  ==================================================================
+         *  ==================================================================
+         * 
+         */
+        
+        /*
+         *  validates a user can login
+         *
+         *  @string accountName -> name
+         *  @string password -> password
+         */
+        
+        
+        public abstract Task<(int UserId, int CharId, int Permission)?> LoginWebUser(string accountName, string password);
+        
+        
+        /*
+         *
+         * returns a users permission level
+         * 
+         *  @int charid  -> character id
+         *  @int accountid -> account id
+         */
+        
+        public virtual async Task<int> validatepermissions(int charid,int accountid)
+        {
+            var cmd = GetCommand("select u.id, c.permissions as permission,c.id as charid from characters c join accounts u on c.owner = u.id where c.id = @charid and u.id=@accountId");
+            cmd.AddParam("@charid", charid);
+            cmd.AddParam("@accountId", accountid);
+            var dt = await RunQuery(cmd);
+
+            // if no account with this steamid is found, we should create it!
+            if (!dt.HasRows())
+            {
+                // if doesnt exist return -1 so we can invalidate the token
+                return -1;
+            }
+            // if it's found
+            else
+            {
+                var permission = (int)dt.GetInt(0, "permission")!;
+                
+                // if everything checks out, allow login by returning user's id
+                return permission;
+            }
+            
+        }
+        
+        /*
+         *
+         *  fetches all user created world items
+         *
+         */
+      
+        
+        public virtual async Task<List<TypeDefs.WorldItemsDto>> worlditemspawnlist()
+        {
+            var cmd = GetCommand("SELECT id, name FROM world_itemlist");
+            var dt = await RunQuery(cmd);
+            
+            var witems = new List<TypeDefs.WorldItemsDto>();
+            // If no accounts found, return an empty list
+            if (dt.Rows.Count == 0)
+            {
+                return witems;
+            }
+
+            // Loop through each row in the DataTable
+            foreach (DataRow row in dt.Rows)
+            {
+                var witem = new TypeDefs.WorldItemsDto
+                {
+                    name = row["name"]?.ToString() ?? string.Empty,
+                };
+
+                witems.Add(witem);
+                
+            }
+
+            return witems;
+        }
+        
+        /*
+         *
+         *  fetches all accounts
+         *  
+         */
+       
+        
+        public virtual async Task<List<TypeDefs.AccountDto>> allaccounts()
+        {
+            var cmd = GetCommand("SELECT id, name, steamid, email, status FROM accounts");
+            var dt = await RunQuery(cmd);
+
+            var accounts = new List<TypeDefs.AccountDto>();
+
+            // If no accounts found, return an empty list
+            if (dt.Rows.Count == 0)
+            {
+                return accounts;
+            }
+
+            // Loop through each row in the DataTable
+            foreach (DataRow row in dt.Rows)
+            {
+                var account = new TypeDefs.AccountDto
+                {
+                    id = row["id"] != DBNull.Value ? Convert.ToInt32(row["id"]) : 0,
+                    name = row["name"]?.ToString() ?? string.Empty,
+                    steamId = row["steamid"]?.ToString() ?? string.Empty,
+                    email = row["email"]?.ToString() ?? string.Empty,
+                    status = row["status"] != DBNull.Value ? Convert.ToInt32(row["status"]) : 0
+                };
+
+                accounts.Add(account);
+            }
+
+            return accounts;
+        }
+        
+        /*
+         *
+         *  fetches all characters by an account id
+         *  @int accountid -> owner
+         * 
+         */
+       
+        public virtual async Task<List<TypeDefs.UserCharactersDto>> usercharacters(int accountId)
+        {
+            var cmd = GetCommand("SELECT c.*, g.name AS guild_name FROM characters c LEFT JOIN guilds g ON c.guild = g.id WHERE c.owner = @accountid");
+            cmd.AddParam("@accountid", accountId);
+            var dt = await RunQuery(cmd);
+            var allcharacters = new List<TypeDefs.UserCharactersDto>();
+            // If no accounts found, return an empty list
+            if (dt.Rows.Count == 0)
+            {
+                return allcharacters;
+            }
+
+            // Loop through each row in the DataTable
+            foreach (DataRow row in dt.Rows)
+            {
+                var characters = new TypeDefs.UserCharactersDto
+                {
+                    id = row["id"] != DBNull.Value ? Convert.ToInt32(row["id"]) : 0,
+                    name =  row["name"]?.ToString() ?? string.Empty,
+                    owner = row["owner"] != DBNull.Value ? Convert.ToInt32(row["owner"]) : 0,
+                    guild = row["guild"] != DBNull.Value ? Convert.ToInt32(row["guild"]) : 0,
+                    guildname = row["guild_name"]?.ToString() ?? string.Empty,
+                    guildrank = row["guildrank"] != DBNull.Value ? Convert.ToInt32(row["guildrank"]) : 0,
+                    
+                   
+                };
+                var serialized = row.GetString("serialized");
+                if (!string.IsNullOrEmpty(serialized))
+                {
+                    characters.serialized = JsonConvert.DeserializeObject<TypeDefs.CharacterSerialized>(serialized);
+                }
+                allcharacters.Add(characters);
+                
+            }
+
+            return allcharacters;
+        }
+        
+        
+        /*
+         *
+         *  updates a users inventory within the serialized string
+         *  @class TypeDefs -> UpdateInventory
+         * 
+         */
+        public async Task<int> UpdateInventory(int characterId, TypeDefs.UpdateInventory inventory)
+        {
+           
+            var cmd = GetCommand("SELECT * FROM characters WHERE id = @characterId");
+            cmd.AddParam("@characterId", characterId);
+            var dt = await RunQuery(cmd);
+
+            if (dt.Rows.Count == 0)
+            {
+                throw new Exception("Character not found");
+            }
+
+            var row = dt.Rows[0];
+            var serialized = row.GetString("serialized");
+
+            if (string.IsNullOrEmpty(serialized))
+            {
+                throw new Exception("Serialized data is missing or empty.");
+            }
+
+            var characterSerialized = JsonConvert.DeserializeObject<TypeDefs.CharacterSerialized>(serialized);
+            try
+            {
+                if (inventory != null )
+                {
+                    characterSerialized.Inventory = inventory.inventory;
+                }
+                else
+                {
+                    throw new ArgumentException("Inventory data is invalid.");
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to update character fields. Error: {ex.Message}");
+            }
+
+            var updatedSerialized = JsonConvert.SerializeObject(characterSerialized);
+
+            var updateCmd = GetCommand("UPDATE characters SET serialized = @serialized WHERE id = @characterId");
+            updateCmd.AddParam("@serialized", updatedSerialized);
+            updateCmd.AddParam("@characterId", characterId);
+
+            return await RunNonQuery(updateCmd);
+
+            return await RunNonQuery(updateCmd);
+        }
+        
+        /*
+         *
+         *  updates a users stats within the serialized string
+         *  @class TypeDefs -> UpdateStats
+         *
+         */
+        public async Task<int> UpdateStats(int characterId, TypeDefs.UpdateStats stats)
+        {
+           
+            var cmd = GetCommand("SELECT * FROM characters WHERE id = @characterId");
+            cmd.AddParam("@characterId", characterId);
+            var dt = await RunQuery(cmd);
+
+            if (dt.Rows.Count == 0)
+            {
+                throw new Exception("Character not found");
+            }
+
+            var row = dt.Rows[0];
+            var serialized = row.GetString("serialized");
+
+            if (string.IsNullOrEmpty(serialized))
+            {
+                throw new Exception("Serialized data is missing or empty.");
+            }
+
+            var characterSerialized = JsonConvert.DeserializeObject<TypeDefs.CharacterSerialized>(serialized);
+            try
+            {
+                if (stats != null )
+                {
+                    characterSerialized.Stats = stats.stats;
+                }
+                else
+                {
+                    throw new ArgumentException("Stats data is invalid.");
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to update character fields. Error: {ex.Message}");
+            }
+
+            var updatedSerialized = JsonConvert.SerializeObject(characterSerialized);
+
+            var updateCmd = GetCommand("UPDATE characters SET serialized = @serialized WHERE id = @characterId");
+            updateCmd.AddParam("@serialized", updatedSerialized);
+            updateCmd.AddParam("@characterId", characterId);
+
+            return await RunNonQuery(updateCmd);
+            
+        }
+        
+        /*
+         *
+         *  updates a users appearance within the serialized string
+         *  @class TypeDefs -> UpdateAppearance
+         *
+         */
+        public async Task<int> UpdateAppearance(int characterId, TypeDefs.UpdateAppearance appearance)
+        {
+           
+            var cmd = GetCommand("SELECT * FROM characters WHERE id = @characterId");
+            cmd.AddParam("@characterId", characterId);
+            var dt = await RunQuery(cmd);
+
+            if (dt.Rows.Count == 0)
+            {
+                throw new Exception("Character not found");
+            }
+
+            var row = dt.Rows[0];
+            var serialized = row.GetString("serialized");
+
+            if (string.IsNullOrEmpty(serialized))
+            {
+                throw new Exception("Serialized data is missing or empty.");
+            }
+
+            var characterSerialized = JsonConvert.DeserializeObject<TypeDefs.CharacterSerialized>(serialized);
+            try
+            {
+                if (appearance != null )
+                {
+                    characterSerialized.Appearance = appearance.appearance;
+                }
+                else
+                {
+                    throw new ArgumentException("Appearance data is invalid.");
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to update character fields. Error: {ex.Message}");
+            }
+
+            var updatedSerialized = JsonConvert.SerializeObject(characterSerialized);
+
+            var updateCmd = GetCommand("UPDATE characters SET serialized = @serialized WHERE id = @characterId");
+            updateCmd.AddParam("@serialized", updatedSerialized);
+            updateCmd.AddParam("@characterId", characterId);
+
+            return await RunNonQuery(updateCmd);
+            
+        }
+        
+        /*
+         *
+         *  updates a users transform within the serialized string
+         *  @class TypeDefs -> UpdateTransform
+         *
+         */
+        public async Task<int> UpdateTransform(int characterId, TypeDefs.UpdateTransform transform)
+        {
+           
+            var cmd = GetCommand("SELECT * FROM characters WHERE id = @characterId");
+            cmd.AddParam("@characterId", characterId);
+            var dt = await RunQuery(cmd);
+
+            if (dt.Rows.Count == 0)
+            {
+                throw new Exception("Character not found");
+            }
+
+            var row = dt.Rows[0];
+            var serialized = row.GetString("serialized");
+
+            if (string.IsNullOrEmpty(serialized))
+            {
+                throw new Exception("Serialized data is missing or empty.");
+            }
+
+            var characterSerialized = JsonConvert.DeserializeObject<TypeDefs.CharacterSerialized>(serialized);
+            try
+            {
+                if (transform != null )
+                {
+                    characterSerialized.Transform = transform.transform;
+                }
+                else
+                {
+                    throw new ArgumentException("Appearance data is invalid.");
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to update character fields. Error: {ex.Message}");
+            }
+
+            var updatedSerialized = JsonConvert.SerializeObject(characterSerialized);
+
+            var updateCmd = GetCommand("UPDATE characters SET serialized = @serialized WHERE id = @characterId");
+            updateCmd.AddParam("@serialized", updatedSerialized);
+            updateCmd.AddParam("@characterId", characterId);
+
+            return await RunNonQuery(updateCmd);
+            
+        }
+        /*
+         *
+         *  updates a users guild and/or guild rank
+         *  @int guildId -> guild
+         *  @int guildRank -> guildrank
+         *
+         */
+        public async Task<int> UpdateGuild(int characterId, int guildId, int guildRank)
+        {
+            int result = 0;
+            if (guildId != 0)
+            {
+                var updateCmd = GetCommand("UPDATE characters SET guild = @guild WHERE id = @characterId");
+                updateCmd.AddParam("@guild", guildId);
+                updateCmd.AddParam("@characterId", characterId);
+                result = await RunNonQuery(updateCmd);
+            }
+
+            if (guildRank != 0)
+            {
+                var updateCmd = GetCommand("UPDATE characters SET guildrank = @guild WHERE id = @characterId");
+                updateCmd.AddParam("@guild", guildRank);
+                updateCmd.AddParam("@characterId", characterId);
+                result = await RunNonQuery(updateCmd);
+            }
+          
+            return result;
+            
+        }
+
+        /*
+         *
+         *  fetches all guilds
+         *  
+         *
+         */
+      
+        public virtual async Task<List<TypeDefs.GuildsDto>> allguilds()
+        {
+            var cmd = GetCommand("select * from guilds");
+            var dt = await RunQuery(cmd);
+            var allguilds = new List<TypeDefs.GuildsDto>();
+            // If no accounts found, return an empty list
+            if (dt.Rows.Count == 0)
+            {
+                return allguilds;
+            }
+
+            // Loop through each row in the DataTable
+            foreach (DataRow row in dt.Rows)
+            {
+                var guild = new TypeDefs.GuildsDto
+                {
+                    id = row["id"] != DBNull.Value ? Convert.ToInt32(row["id"]) : 0,
+                    name = row["name"]?.ToString() ?? string.Empty,
+                    serialized = row["serialized"]?.ToString() ?? string.Empty,
+                    
+                };
+
+                allguilds.Add(guild);
+            }
+
+            return allguilds;
+        }
+
+        
+        /*
+         *
+         *  Updates an account
+         *  @int accountid -> id
+         *  @string accountName -> name
+         *  @string accountEmail -> email
+         *  @int accountStatus -> status
+         */
+        
+        public virtual async Task<int> updateaccount(int accountId, string accountName, string accountEmail, int accountStatus)
+        {
+            var cmd = GetCommand("update accounts set name=@accountName, set email=@accountEmail, status=@accountStatus where id=@accountId ");
+            cmd.AddParam("@accountName", accountName);
+            cmd.AddParam("@accountEmail", accountEmail);
+            cmd.AddParam("@accountStatus", accountStatus);
+            cmd.AddParam("@accountid", accountId);
+            // Execute the query and get the number of affected rows
+            int affectedRows = await RunNonQuery(cmd);
+
+            if (affectedRows > 1)
+            {
+                // return -1 because there should only be a max of 1 account affected
+                return -1;
+            }
+            return affectedRows;
+           
+
+           
+             
+        }
+        
+       
+        
     }
 }

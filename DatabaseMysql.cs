@@ -102,7 +102,19 @@ namespace PersistenceServer
                         serialized text NOT NULL,
                         PRIMARY KEY (id),
                         UNIQUE INDEX PERSISTENT_OBJ_INDEX (`objectId`, `port`, `level`(100))
-                    ) ENGINE = InnoDB;"
+                    ) ENGINE = InnoDB;
+                    CREATE TABLE IF NOT EXISTS `world_itemlist` (
+                      `id` bigint NOT NULL AUTO_INCREMENT,
+                      `name` varchar(255) COLLATE utf8mb4_0900_as_ci NOT NULL,
+                        PRIMARY KEY (id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_ci;
+                   INSERT IGNORE INTO `world_itemlist` (`id`, `name`) VALUES
+                    (1, 'Equipment:Sword_01'),
+                    (2, 'Equipment:Sword_02'),
+                    (3, 'Equipment:Sword_03'),
+                    (4, 'BasicItem:Gem');
+
+                    "
                 );
             // ~create tables            
         }
@@ -138,6 +150,54 @@ namespace PersistenceServer
 
             // if everything checks out, allow login by returning user's id
             return id;
+        }
+        
+        public override async Task<(int UserId, int CharId, int Permission)?> LoginWebUser(string accountName, string password)
+        {
+            var cmd = GetCommand(@"
+                 SELECT 
+                    u.id, u.password, u.salt, u.status,u.name,
+                    c.id as charid, 
+                    c.permissions as permissions
+                FROM 
+                    accounts u
+                JOIN 
+                    characters c
+                ON 
+                    u.id = c.owner
+                WHERE 
+                    permissions > 0 and u.name = @accountName;
+            ");
+            cmd.AddParam("@accountName", accountName);
+            var dt = await RunQuery(cmd);
+
+            // if not account with this name is found
+            if (!dt.HasRows())
+            {
+                return (-1, -1, -1);
+            }
+
+            var id = (int)dt.GetInt(0, "id")!;
+            var status = dt.GetInt(0, "status")!;
+            var charid = (int)dt.GetInt(row: 0, column: "charid");
+            var permission = (int)dt.GetInt(row: 0, column: "permissions");
+            var passwordInDb = Encoding.UTF8.GetString(dt.GetBinaryArray(0, "password"));
+            var salt = Encoding.UTF8.GetString(dt.GetBinaryArray(0, "salt"));
+
+            // if status is banned
+            if (status == -1)
+            {
+                return (-1,-1,-1);
+            }
+
+            // if wrong password
+            if (passwordInDb != BCrypt.Net.BCrypt.HashPassword(password, salt + Pepper))
+            {
+                return (-1,-1,-1);
+            }
+
+            // if everything checks out, allow login by returning user's id
+            return (id, charid, permission);
         }
 
         public override async Task<Guild?> CreateGuild(string guildName, int charId)

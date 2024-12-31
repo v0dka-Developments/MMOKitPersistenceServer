@@ -10,6 +10,7 @@ namespace PersistenceServer
             // Reads from settings.ini
             SettingsReader settings = new();
             Database database;
+            CookieValidator CookieValidator = new();
             if (settings.SqlType == SqlType.MySql)
                 database = new DatabaseMysql(settings);
             else if (settings.SqlType == SqlType.Sqlite)
@@ -19,7 +20,7 @@ namespace PersistenceServer
             await database.CheckCreateDatabase(settings);
 
             // Create a new TCP-based server. IPAddress.Any = people can connect from any ip.
-            var server = new MmoWsServer(settings, database);
+            var server = new MmoWsServer(settings, database, CookieValidator);
             int guildsTotal = await server.RequestGuilds();
             Console.WriteLine($"Guilds received: {guildsTotal}");
             server.Start();
@@ -44,7 +45,7 @@ namespace PersistenceServer
                 {
                     Console.Write("Server restarting...");
                     await server.Stop();
-                    server = new MmoWsServer(settings, database);
+                    server = new MmoWsServer(settings, database, CookieValidator);
                     guildsTotal = await server.RequestGuilds();
                     Console.WriteLine($"Guilds received: {guildsTotal}");
                     server.Start();

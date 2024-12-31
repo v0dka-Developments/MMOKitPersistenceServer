@@ -12,19 +12,20 @@ using Microsoft.Extensions.Logging;
 namespace PersistenceServer
 {
     public class MmoWsServer
-    {        
+    {       
         public readonly ActionsSyncher Processor;
         public readonly GameLogic GameLogic;
         public readonly Database Database;
         public readonly SettingsReader Settings;
-
+        public readonly CookieValidator CookieValidator;
+        
         public delegate void MessageReceivedHandler(RpcType inRpcType, UserConnection conn, BinaryReader reader);
         public event MessageReceivedHandler? OnMessageReceived;
         private readonly IWebHost? host;
 
         public static MmoWsServer? Singleton; // for usage from HttpControllers
 
-        public MmoWsServer(SettingsReader inSettings, Database inDatabase)
+        public MmoWsServer(SettingsReader inSettings, Database inDatabase, CookieValidator inCookieValidator)
         {
             Singleton = this;
 
@@ -36,7 +37,7 @@ namespace PersistenceServer
             _ = Processor.Tick();
 
             Database = inDatabase;
-
+            CookieValidator = inCookieValidator;
             // Create an instance of each class that inherits from BaseRPC
             List<BaseRpc> rpcReaders = typeof(BaseRpc).Assembly.GetTypes().Where(t => t.IsSubclassOf(typeof(BaseRpc))).Select(t => (BaseRpc)Activator.CreateInstance(t)!).ToList();
 #if DEBUG

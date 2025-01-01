@@ -14,6 +14,7 @@ namespace PersistenceServer
             FetchCharacters = 0,
             FetchWorldItems = 0,
             FetchGuilds = 0,
+            BanUsers = 0,
             UpdateGuilds = 2,
             
         }
@@ -96,6 +97,16 @@ namespace PersistenceServer
 
             public int? guild { get; set; }
             public int? guildRank { get; set; }
+        }
+        public class BanUserAccount
+        {
+            public string? Cookie { get; set; }
+            public int? Charid { get; set; }
+            public int? Accountid { get; set; }
+
+            public int selectedCharacterId { get; set; }
+            public string reason { get; set; }
+            
         }
 
 

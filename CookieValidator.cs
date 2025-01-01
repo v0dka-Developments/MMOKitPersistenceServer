@@ -34,8 +34,6 @@ namespace PersistenceServer
             if (_userCookies.ContainsKey(accountId))
             {
                 string storedCookie = _userCookies[accountId];
-                Console.WriteLine("Client Cookie: " + clientCookie);
-                Console.WriteLine("Server Side Cookie: " + storedCookie);
                 string finalCookie = clientCookie + storedCookie;
                 
                 // Verify that the cookie matches the expected hash

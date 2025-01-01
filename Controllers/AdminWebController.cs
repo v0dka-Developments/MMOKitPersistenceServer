@@ -34,12 +34,9 @@ namespace PersistenceServer.Controllers
             //check if cookie is present
             if (request.Cookie != null && request.Accountid != null && request.Charid != null && request.Permission != null)
             {
-                Console.WriteLine("i made it here");
                 int accountId = request.Accountid ?? 0; // methods dont allow non nulled ints...
-                Console.WriteLine(accountId);
                 if (MmoWsServer.Singleton!.CookieValidator.ValidateCookie(accountId, request.Cookie))
                 {
-                    Console.WriteLine("refreshing token");
                     var (cookiePart, ServerPart) = MmoWsServer.Singleton!.CookieValidator.RefreshToken(accountId);
                     // The cookie is valid
                     tcs.SetResult(Ok(new
@@ -56,7 +53,6 @@ namespace PersistenceServer.Controllers
                 }
                 else
                 {
-                    Console.WriteLine("i do make it here for termination");
                     dynamic errors = new ExpandoObject();
                     errors.Username = new List<string> { "Token expired"};
                     tcs.SetResult(BadRequest(new
@@ -73,7 +69,6 @@ namespace PersistenceServer.Controllers
             // Validate the request
             if (request.Username == null || request.Password == null || request.Username == "" || request.Password == "")
             {
-                Console.WriteLine("i am working here?");
                 dynamic errors = new ExpandoObject();
                 errors.Request = request == null ? new List<string> { "Request body cannot be null." } : null;
                 if (request?.Username == null) errors.Username = new List<string> { "The Username cannot be empty." };
@@ -142,7 +137,7 @@ namespace PersistenceServer.Controllers
                 {
                     Console.WriteLine($"Login failed for '{request.Username}': bad credentials");
                     dynamic errors = new ExpandoObject();
-                    errors.Credentials = new List<string> { "Invalid username or password." };
+                    errors.Username = new List<string> { "Invalid username or password." };
                     tcs.SetResult(BadRequest(new
                     {
                         type = "https://tools.ietf.org/html/rfc9110#section-15.5.1",
@@ -213,7 +208,6 @@ namespace PersistenceServer.Controllers
                             // decide if we should randomly do a token refresh
                             Random random = new Random();
                             int check_token_refresh = random.Next(0, 100);
-                            Console.WriteLine("random number is"+check_token_refresh);
                             if (check_token_refresh > 70)
                             {
                                 // if it is higher than 70 then regen token
@@ -334,9 +328,21 @@ namespace PersistenceServer.Controllers
 
             MmoWsServer.Singleton!.Processor.ConQ.Enqueue(async () =>
             {
+                if (!MmoWsServer.Singleton!.CookieValidator.ValidateCookie(accountId, request.Cookie))
+                {
+                    dynamic errors = new ExpandoObject();
+                    errors.Permissions = new List<string> { "Invalid Session" };
+                    tcs.SetResult(BadRequest(new
+                    {
+                        title = "Error",
+                        status = 400,
+                        errors,
+                        traceId = HttpContext.TraceIdentifier
+                    }));
+                    return;
+                }
                 // Validate the user's permissions
                 int userPermissionLevel = await MmoWsServer.Singleton!.Database.validatepermissions(charId, accountId);
-                Console.WriteLine(userPermissionLevel);
                 if (!PermissionValidator.HasPermission(userPermissionLevel, TypeDefs.Permissions.FetchCharacters))
                 {
                     dynamic errors = new ExpandoObject();
@@ -379,9 +385,21 @@ namespace PersistenceServer.Controllers
 
             MmoWsServer.Singleton!.Processor.ConQ.Enqueue(async () =>
             {
+                if (!MmoWsServer.Singleton!.CookieValidator.ValidateCookie(accountId, request.Cookie))
+                {
+                    dynamic errors = new ExpandoObject();
+                    errors.Permissions = new List<string> { "Invalid Session" };
+                    tcs.SetResult(BadRequest(new
+                    {
+                        title = "Error",
+                        status = 400,
+                        errors,
+                        traceId = HttpContext.TraceIdentifier
+                    }));
+                    return;
+                }
                 // Validate the user's permissions
                 int userPermissionLevel = await MmoWsServer.Singleton!.Database.validatepermissions(charId, accountId);
-                Console.WriteLine(userPermissionLevel);
                 if (!PermissionValidator.HasPermission(userPermissionLevel, TypeDefs.Permissions.FetchWorldItems))
                 {
                     dynamic errors = new ExpandoObject();
@@ -422,9 +440,21 @@ namespace PersistenceServer.Controllers
 
             MmoWsServer.Singleton!.Processor.ConQ.Enqueue(async () =>
             {
+                if (!MmoWsServer.Singleton!.CookieValidator.ValidateCookie(accountId, request.Cookie))
+                {
+                    dynamic errors = new ExpandoObject();
+                    errors.Permissions = new List<string> { "Invalid Session" };
+                    tcs.SetResult(BadRequest(new
+                    {
+                        title = "Error",
+                        status = 400,
+                        errors,
+                        traceId = HttpContext.TraceIdentifier
+                    }));
+                    return;
+                }
                 // Validate the user's permissions
                 int userPermissionLevel = await MmoWsServer.Singleton!.Database.validatepermissions(charId, accountId);
-                Console.WriteLine(userPermissionLevel);
                 if (!PermissionValidator.HasPermission(userPermissionLevel, TypeDefs.Permissions.FetchGuilds))
                 {
                     dynamic errors = new ExpandoObject();
@@ -466,9 +496,21 @@ namespace PersistenceServer.Controllers
             
             MmoWsServer.Singleton!.Processor.ConQ.Enqueue(async () =>
             {
+                if (!MmoWsServer.Singleton!.CookieValidator.ValidateCookie(accountId, request.Cookie))
+                {
+                    dynamic errors = new ExpandoObject();
+                    errors.Permissions = new List<string> { "Invalid Session" };
+                    tcs.SetResult(BadRequest(new
+                    {
+                        title = "Error",
+                        status = 400,
+                        errors,
+                        traceId = HttpContext.TraceIdentifier
+                    }));
+                    return;
+                }
                 // Validate the user's permissions
                 int userPermissionLevel = await MmoWsServer.Singleton!.Database.validatepermissions(charId, accountId);
-                Console.WriteLine(userPermissionLevel);
                 if (!PermissionValidator.HasPermission(userPermissionLevel, TypeDefs.Permissions.FetchGuilds))
                 {
                     dynamic errors = new ExpandoObject();
@@ -489,7 +531,6 @@ namespace PersistenceServer.Controllers
                     inventory = request.inventory 
                 };
                 var res =  await MmoWsServer.Singleton!.Database.UpdateInventory(request.selectedCharacterId, updateInventoryRequest);
-                Console.WriteLine(res);
                 tcs.SetResult(Ok(new
                 {
                     title = "Inventory Updated",
@@ -514,6 +555,19 @@ namespace PersistenceServer.Controllers
             
             MmoWsServer.Singleton!.Processor.ConQ.Enqueue(async () =>
             {
+                if (!MmoWsServer.Singleton!.CookieValidator.ValidateCookie(accountId, request.Cookie))
+                {
+                    dynamic errors = new ExpandoObject();
+                    errors.Permissions = new List<string> { "Invalid Session" };
+                    tcs.SetResult(BadRequest(new
+                    {
+                        title = "Error",
+                        status = 400,
+                        errors,
+                        traceId = HttpContext.TraceIdentifier
+                    }));
+                    return;
+                }
                 // Validate the user's permissions
                 int userPermissionLevel = await MmoWsServer.Singleton!.Database.validatepermissions(charId, accountId);
                 if (!PermissionValidator.HasPermission(userPermissionLevel, TypeDefs.Permissions.FetchGuilds))
@@ -536,7 +590,6 @@ namespace PersistenceServer.Controllers
                     stats = request.stats 
                 };
                 var res =  await MmoWsServer.Singleton!.Database.UpdateStats(request.selectedCharacterId, updateStatsRequest);
-                Console.WriteLine(res);
                 tcs.SetResult(Ok(new
                 {
                     title = "Inventory Updated",
@@ -560,6 +613,19 @@ namespace PersistenceServer.Controllers
             
             MmoWsServer.Singleton!.Processor.ConQ.Enqueue(async () =>
             {
+                if (!MmoWsServer.Singleton!.CookieValidator.ValidateCookie(accountId, request.Cookie))
+                {
+                    dynamic errors = new ExpandoObject();
+                    errors.Permissions = new List<string> { "Invalid Session" };
+                    tcs.SetResult(BadRequest(new
+                    {
+                        title = "Error",
+                        status = 400,
+                        errors,
+                        traceId = HttpContext.TraceIdentifier
+                    }));
+                    return;
+                }
                 // Validate the user's permissions
                 int userPermissionLevel = await MmoWsServer.Singleton!.Database.validatepermissions(charId, accountId);
                 if (!PermissionValidator.HasPermission(userPermissionLevel, TypeDefs.Permissions.FetchGuilds))
@@ -582,7 +648,6 @@ namespace PersistenceServer.Controllers
                     appearance = request.appearance 
                 };
                 var res =  await MmoWsServer.Singleton!.Database.UpdateAppearance(request.selectedCharacterId, updateAppearanceRequest);
-                Console.WriteLine(res);
                 tcs.SetResult(Ok(new
                 {
                     title = "Inventory Updated",
@@ -606,6 +671,19 @@ namespace PersistenceServer.Controllers
             
             MmoWsServer.Singleton!.Processor.ConQ.Enqueue(async () =>
             {
+                if (!MmoWsServer.Singleton!.CookieValidator.ValidateCookie(accountId, request.Cookie))
+                {
+                    dynamic errors = new ExpandoObject();
+                    errors.Permissions = new List<string> { "Invalid Session" };
+                    tcs.SetResult(BadRequest(new
+                    {
+                        title = "Error",
+                        status = 400,
+                        errors,
+                        traceId = HttpContext.TraceIdentifier
+                    }));
+                    return;
+                }
                 // Validate the user's permissions
                 int userPermissionLevel = await MmoWsServer.Singleton!.Database.validatepermissions(charId, accountId);
                 if (!PermissionValidator.HasPermission(userPermissionLevel, TypeDefs.Permissions.FetchGuilds))
@@ -628,7 +706,6 @@ namespace PersistenceServer.Controllers
                     transform = request.transform 
                 };
                 var res =  await MmoWsServer.Singleton!.Database.UpdateTransform(request.selectedCharacterId, updateTransformRequest);
-                Console.WriteLine(res);
                 tcs.SetResult(Ok(new
                 {
                     title = "Inventory Updated",
@@ -651,6 +728,19 @@ namespace PersistenceServer.Controllers
             
             MmoWsServer.Singleton!.Processor.ConQ.Enqueue(async () =>
             {
+                if (!MmoWsServer.Singleton!.CookieValidator.ValidateCookie(accountId, request.Cookie))
+                {
+                    dynamic errors = new ExpandoObject();
+                    errors.Permissions = new List<string> { "Invalid Session" };
+                    tcs.SetResult(BadRequest(new
+                    {
+                        title = "Error",
+                        status = 400,
+                        errors,
+                        traceId = HttpContext.TraceIdentifier
+                    }));
+                    return;
+                }
                 // Validate the user's permissions
                 int userPermissionLevel = await MmoWsServer.Singleton!.Database.validatepermissions(charId, accountId);
                 if (!PermissionValidator.HasPermission(userPermissionLevel, TypeDefs.Permissions.FetchGuilds))
@@ -671,7 +761,6 @@ namespace PersistenceServer.Controllers
                 int guildrank = request.guildRank ?? 0;
                     
                 var res =  await MmoWsServer.Singleton!.Database.UpdateGuild(request.selectedCharacterId, guildid, guildrank);
-                Console.WriteLine(res);
                 tcs.SetResult(Ok(new
                 {
                     title = "Inventory Updated",
@@ -683,9 +772,117 @@ namespace PersistenceServer.Controllers
 
             return await tcs.Task;
         }
-
-
         
+        [HttpPost("BanUserAccount")]
+        [Authorize(Role.Anonymous)]
+        public async Task<IActionResult> BanUserAccount([FromBody] TypeDefs.BanUserAccount request)
+        {
+            var tcs = new TaskCompletionSource<IActionResult>();
+            int accountId = request.Accountid ?? 0;
+            int charId = request.Charid ?? 0;
+            
+            MmoWsServer.Singleton!.Processor.ConQ.Enqueue(async () =>
+            {
+                if (!MmoWsServer.Singleton!.CookieValidator.ValidateCookie(accountId, request.Cookie))
+                {
+                    dynamic errors = new ExpandoObject();
+                    errors.Permissions = new List<string> { "Invalid Session" };
+                    tcs.SetResult(BadRequest(new
+                    {
+                        title = "Error",
+                        status = 400,
+                        errors,
+                        traceId = HttpContext.TraceIdentifier
+                    }));
+                    return;
+                }
+                // Validate the user's permissions
+                int userPermissionLevel = await MmoWsServer.Singleton!.Database.validatepermissions(charId, accountId);
+                if (!PermissionValidator.HasPermission(userPermissionLevel, TypeDefs.Permissions.BanUsers))
+                {
+                    dynamic errors = new ExpandoObject();
+                    errors.Permissions = new List<string> { "Invalid permissions" };
+                    tcs.SetResult(BadRequest(new
+                    {
+                        title = "Error",
+                        status = 400,
+                        errors,
+                        traceId = HttpContext.TraceIdentifier
+                    }));
+                    return;
+                }
+
+              
+                    
+                var res =  await MmoWsServer.Singleton!.Database.banaccount(request.selectedCharacterId, request.reason);
+                tcs.SetResult(Ok(new
+                {
+                    title = "Banned",
+                    message = "User has been successfully banned",
+                    status = 200,
+                    traceId = HttpContext.TraceIdentifier
+                }));
+             
+            });
+
+            return await tcs.Task;
+        }
+
+
+        [HttpPost("UnBanUserAccount")]
+        [Authorize(Role.Anonymous)]
+        public async Task<IActionResult> UnBanUserAccount([FromBody] TypeDefs.BanUserAccount request)
+        {
+            var tcs = new TaskCompletionSource<IActionResult>();
+            int accountId = request.Accountid ?? 0;
+            int charId = request.Charid ?? 0;
+            
+            MmoWsServer.Singleton!.Processor.ConQ.Enqueue(async () =>
+            {
+                if (!MmoWsServer.Singleton!.CookieValidator.ValidateCookie(accountId, request.Cookie))
+                {
+                    dynamic errors = new ExpandoObject();
+                    errors.Permissions = new List<string> { "Invalid Session" };
+                    tcs.SetResult(BadRequest(new
+                    {
+                        title = "Error",
+                        status = 400,
+                        errors,
+                        traceId = HttpContext.TraceIdentifier
+                    }));
+                    return;
+                }
+                // Validate the user's permissions
+                int userPermissionLevel = await MmoWsServer.Singleton!.Database.validatepermissions(charId, accountId);
+                if (!PermissionValidator.HasPermission(userPermissionLevel, TypeDefs.Permissions.BanUsers))
+                {
+                    dynamic errors = new ExpandoObject();
+                    errors.Permissions = new List<string> { "Invalid permissions" };
+                    tcs.SetResult(BadRequest(new
+                    {
+                        title = "Error",
+                        status = 400,
+                        errors,
+                        traceId = HttpContext.TraceIdentifier
+                    }));
+                    return;
+                }
+
+              
+                    
+                var res =  await MmoWsServer.Singleton!.Database.unbanaccount(request.selectedCharacterId, request.reason);
+                tcs.SetResult(Ok(new
+                {
+                    title = "Unbanned",
+                    message = "User has been successfully un-banned",
+                    status = 200,
+                    traceId = HttpContext.TraceIdentifier
+                }));
+             
+            });
+
+            return await tcs.Task;
+        }
         
         
         

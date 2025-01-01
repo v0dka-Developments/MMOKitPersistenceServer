@@ -946,6 +946,58 @@ namespace PersistenceServer
             return allguilds;
         }
 
+        /*
+         *
+         *  Updates an account
+         *  @int accountid -> id
+         *  @string accountName -> name
+         *  @string accountEmail -> email
+         *  @int accountStatus -> status
+         */
+        
+        public virtual async Task<int> banaccount(int accountId, string reason)
+        {
+            var cmd = GetCommand("update accounts set status=1 where id=@accountId ");
+            cmd.AddParam("@accountid", accountId);
+            var cmdreason = GetCommand("insert into bans (userid, reason,typeofban) values (@accountId, @reason, 'ban') ");
+            cmdreason.AddParam("@accountid", accountId);
+            cmdreason.AddParam("@reason", reason);
+
+            
+            // Execute the query and get the number of affected rows
+            int affectedRows = await RunNonQuery(cmd);
+            await RunQuery(cmdreason);
+            
+            if (affectedRows > 1)
+            {
+                // return -1 because there should only be a max of 1 account affected
+                return -1;
+            }
+            return affectedRows;
+             
+        }
+        public virtual async Task<int> unbanaccount(int accountId, string reason)
+        {
+            var cmd = GetCommand("update accounts set status=0 where id=@accountId ");
+            cmd.AddParam("@accountid", accountId);
+            var cmdreason = GetCommand("insert into bans (userid, reason,typeofban) values (@accountId, @reason, 'un-ban') ");
+            cmdreason.AddParam("@accountid", accountId);
+            cmdreason.AddParam("@reason", reason);
+
+            
+            // Execute the query and get the number of affected rows
+            int affectedRows = await RunNonQuery(cmd);
+            await RunQuery(cmdreason);
+            
+            if (affectedRows > 1)
+            {
+                // return -1 because there should only be a max of 1 account affected
+                return -1;
+            }
+            return affectedRows;
+             
+        }
+        
         
         /*
          *
@@ -972,9 +1024,6 @@ namespace PersistenceServer
                 return -1;
             }
             return affectedRows;
-           
-
-           
              
         }
         

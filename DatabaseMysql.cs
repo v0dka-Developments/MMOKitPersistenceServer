@@ -113,7 +113,12 @@ namespace PersistenceServer
                     (2, 'Equipment:Sword_02'),
                     (3, 'Equipment:Sword_03'),
                     (4, 'BasicItem:Gem');
-
+                    CREATE TABLE IF NOT EXISTS `bans` (
+                      `id` bigint NOT NULL AUTO_INCREMENT,
+                      `userid` bigint NOT NULL,
+                      `reason` longtext COLLATE utf8mb4_0900_as_ci NOT NULL,
+                      `typeofban` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_ci NOT NULL
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_ci;
                     "
                 );
             // ~create tables            

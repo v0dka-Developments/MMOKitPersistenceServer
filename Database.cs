@@ -948,11 +948,10 @@ namespace PersistenceServer
 
         /*
          *
-         *  Updates an account
+         *  hanldes ban and unban
          *  @int accountid -> id
-         *  @string accountName -> name
-         *  @string accountEmail -> email
-         *  @int accountStatus -> status
+         *  @string reason -> reason
+         *
          */
         
         public virtual async Task<int> banaccount(int accountId, string reason)
@@ -997,6 +996,36 @@ namespace PersistenceServer
             return affectedRows;
              
         }
+        
+        
+        /*
+         *
+         *  hanldes updating of user information, email/name
+         *  @int accountid -> id
+         *  @string name -> name
+         *  @string email -> email
+         */
+        
+        public virtual async Task<int> updateaccount(int accountId, string name, string email)
+        {
+            var cmd = GetCommand("update accounts set name=@name, email=@email where id=@accountId ");
+            cmd.AddParam("@accountid", accountId);
+            cmd.AddParam("@name", name);
+            cmd.AddParam("@email", email);
+
+            
+            // Execute the query and get the number of affected rows
+            int affectedRows = await RunNonQuery(cmd);
+            
+            if (affectedRows > 1)
+            {
+                // return -1 because there should only be a max of 1 account affected
+                return -1;
+            }
+            return affectedRows;
+             
+        }
+        
         
         
         /*

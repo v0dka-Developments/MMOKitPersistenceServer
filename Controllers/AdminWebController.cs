@@ -534,6 +534,7 @@ namespace PersistenceServer.Controllers
                 tcs.SetResult(Ok(new
                 {
                     title = "Inventory Updated",
+                    message = "Users inventory updated",
                     status = 200,
                     traceId = HttpContext.TraceIdentifier
                 }));
@@ -592,7 +593,8 @@ namespace PersistenceServer.Controllers
                 var res =  await MmoWsServer.Singleton!.Database.UpdateStats(request.selectedCharacterId, updateStatsRequest);
                 tcs.SetResult(Ok(new
                 {
-                    title = "Inventory Updated",
+                    title = "Stats Updated",
+                    message = "Users stats updated",
                     status = 200,
                     traceId = HttpContext.TraceIdentifier
                 }));
@@ -650,7 +652,8 @@ namespace PersistenceServer.Controllers
                 var res =  await MmoWsServer.Singleton!.Database.UpdateAppearance(request.selectedCharacterId, updateAppearanceRequest);
                 tcs.SetResult(Ok(new
                 {
-                    title = "Inventory Updated",
+                    title = "Appearance Updated",
+                    message = "Users appearance updated",
                     status = 200,
                     traceId = HttpContext.TraceIdentifier
                 }));
@@ -708,7 +711,8 @@ namespace PersistenceServer.Controllers
                 var res =  await MmoWsServer.Singleton!.Database.UpdateTransform(request.selectedCharacterId, updateTransformRequest);
                 tcs.SetResult(Ok(new
                 {
-                    title = "Inventory Updated",
+                    title = "Transform Updated",
+                    message = "Users transform updated",
                     status = 200,
                     traceId = HttpContext.TraceIdentifier
                 }));
@@ -763,7 +767,8 @@ namespace PersistenceServer.Controllers
                 var res =  await MmoWsServer.Singleton!.Database.UpdateGuild(request.selectedCharacterId, guildid, guildrank);
                 tcs.SetResult(Ok(new
                 {
-                    title = "Inventory Updated",
+                    title = "Guild Updated",
+                    message = "Users guild has been updated",
                     status = 200,
                     traceId = HttpContext.TraceIdentifier
                 }));
@@ -884,6 +889,62 @@ namespace PersistenceServer.Controllers
             return await tcs.Task;
         }
         
+        
+        
+        [HttpPost("UpdateUserAccount")]
+        [Authorize(Role.Anonymous)]
+        public async Task<IActionResult> updateUserAccount([FromBody] TypeDefs.UpdateUserAccount request)
+        {
+            var tcs = new TaskCompletionSource<IActionResult>();
+            int accountId = request.Accountid ?? 0;
+            int charId = request.Charid ?? 0;
+            
+            MmoWsServer.Singleton!.Processor.ConQ.Enqueue(async () =>
+            {
+                if (!MmoWsServer.Singleton!.CookieValidator.ValidateCookie(accountId, request.Cookie))
+                {
+                    dynamic errors = new ExpandoObject();
+                    errors.Permissions = new List<string> { "Invalid Session" };
+                    tcs.SetResult(BadRequest(new
+                    {
+                        title = "Error",
+                        status = 400,
+                        errors,
+                        traceId = HttpContext.TraceIdentifier
+                    }));
+                    return;
+                }
+                // Validate the user's permissions
+                int userPermissionLevel = await MmoWsServer.Singleton!.Database.validatepermissions(charId, accountId);
+                if (!PermissionValidator.HasPermission(userPermissionLevel, TypeDefs.Permissions.BanUsers))
+                {
+                    dynamic errors = new ExpandoObject();
+                    errors.Permissions = new List<string> { "Invalid permissions" };
+                    tcs.SetResult(BadRequest(new
+                    {
+                        title = "Error",
+                        status = 400,
+                        errors,
+                        traceId = HttpContext.TraceIdentifier
+                    }));
+                    return;
+                }
+
+              
+                    
+                var res =  await MmoWsServer.Singleton!.Database.updateaccount(request.selectedCharacterId,request.name, request.email);
+                tcs.SetResult(Ok(new
+                {
+                    title = "Updated",
+                    message = "User has been successfully updated",
+                    status = 200,
+                    traceId = HttpContext.TraceIdentifier
+                }));
+             
+            });
+
+            return await tcs.Task;
+        }
         
         
         

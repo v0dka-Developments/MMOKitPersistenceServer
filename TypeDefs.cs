@@ -108,6 +108,17 @@ namespace PersistenceServer
             public string reason { get; set; }
             
         }
+        public class UpdateUserAccount
+        {
+            public string? Cookie { get; set; }
+            public int? Charid { get; set; }
+            public int? Accountid { get; set; }
+
+            public int selectedCharacterId { get; set; }
+            public string name { get; set; }
+            public string email { get; set; }
+            
+        }
 
 
         /*

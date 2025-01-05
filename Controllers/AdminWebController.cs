@@ -947,6 +947,167 @@ namespace PersistenceServer.Controllers
         }
         
         
+         [HttpPost("UpdateUserWorldItems")]
+        [Authorize(Role.Anonymous)]
+        public async Task<IActionResult> updateWorldItems([FromBody] TypeDefs.UpdateWorldItems request)
+        {
+            var tcs = new TaskCompletionSource<IActionResult>();
+            int accountId = request.Accountid ?? 0;
+            int charId = request.Charid ?? 0;
+            var typeofaction = request.typeofaction;
+            
+            MmoWsServer.Singleton!.Processor.ConQ.Enqueue(async () =>
+            {
+                if (!MmoWsServer.Singleton!.CookieValidator.ValidateCookie(accountId, request.Cookie))
+                {
+                    dynamic errors = new ExpandoObject();
+                    errors.Permissions = new List<string> { "Invalid Session" };
+                    tcs.SetResult(BadRequest(new
+                    {
+                        title = "Error",
+                        status = 400,
+                        errors,
+                        traceId = HttpContext.TraceIdentifier
+                    }));
+                    return;
+                }
+                // Validate the user's permissions
+                int userPermissionLevel = await MmoWsServer.Singleton!.Database.validatepermissions(charId, accountId);
+                if (!PermissionValidator.HasPermission(userPermissionLevel, TypeDefs.Permissions.UpdateWorldItems))
+                {
+                    dynamic errors = new ExpandoObject();
+                    errors.Permissions = new List<string> { "Invalid permissions" };
+                    tcs.SetResult(BadRequest(new
+                    {
+                        title = "Error",
+                        status = 400,
+                        errors,
+                        traceId = HttpContext.TraceIdentifier
+                    }));
+                    return;
+                }
+
+                if (typeofaction == "delete")
+                {
+                    var res =  await MmoWsServer.Singleton!.Database.deleteworlditem(request.item);
+
+                    if (res == 1)
+                    {
+                        tcs.SetResult(Ok(new
+                        {
+                            title = "Deleted",
+                            message = "Item has been successfully deleted",
+                            result = res,
+                            status = 200,
+                            traceId = HttpContext.TraceIdentifier
+                        }));      
+                    }
+                    else
+                    {
+                        dynamic errors = new ExpandoObject();
+                        errors.Items = new List<string> { "Unable to delete item" };
+                        tcs.SetResult(BadRequest(new
+                        {
+                            title = "Error",
+                            status = 400,
+                            errors,
+                            traceId = HttpContext.TraceIdentifier
+                        }));
+                    }
+                    
+                  
+                    
+                }
+                if (typeofaction == "edit")
+                {
+
+                    if (request.item == null || request.item == ""  || request.newitem == null  || request.newitem == "")
+                    {
+                        dynamic errors = new ExpandoObject();
+                        errors.Items = new List<string> { "item or newitem cannot be empty" };
+                        tcs.SetResult(BadRequest(new
+                        {
+                            title = "Error",
+                            status = 400,
+                            errors,
+                            traceId = HttpContext.TraceIdentifier
+                        }));
+                        return;
+                    }
+                    
+                    var res =  await MmoWsServer.Singleton!.Database.editworlditem(request.item, request.newitem);
+    
+                    if (res == 1)
+                    {
+                        tcs.SetResult(Ok(new
+                        {
+                            title = "Edited",
+                            message = "Item has been successfully edited",
+                            status = 200,
+                            traceId = HttpContext.TraceIdentifier
+                        }));      
+                    }
+                    else if(res == -2)
+                    {
+                        dynamic errors = new ExpandoObject();
+                        errors.Items = new List<string> { "New Item name cant be same as existing item" };
+                        tcs.SetResult(BadRequest(new
+                        {
+                            title = "Error",
+                            status = 400,
+                            errors,
+                            traceId = HttpContext.TraceIdentifier
+                        }));
+                    }
+                    else
+                    {
+                        dynamic errors = new ExpandoObject();
+                        errors.Items = new List<string> { "Unable to edit item" };
+                        tcs.SetResult(BadRequest(new
+                        {
+                            title = "Error",
+                            status = 400,
+                            errors,
+                            traceId = HttpContext.TraceIdentifier
+                        }));
+                    }
+                }
+                if (typeofaction == "new")
+                {
+                    var res =  await MmoWsServer.Singleton!.Database.addworlditem(request.item);
+
+                    if (res == 1)
+                    {
+                        tcs.SetResult(Ok(new
+                        {
+                            title = "Added",
+                            message = "Item has been successfully added",
+                            status = 200,
+                            traceId = HttpContext.TraceIdentifier
+                        }));      
+                    }
+                    else
+                    {
+                        dynamic errors = new ExpandoObject();
+                        errors.Items = new List<string> { "Unable to add item" };
+                        tcs.SetResult(BadRequest(new
+                        {
+                            title = "Error",
+                            status = 400,
+                            errors,
+                            traceId = HttpContext.TraceIdentifier
+                        }));
+                    }
+                }
+                    
+               
+             
+            });
+
+            return await tcs.Task;
+        }
+        
+        
         
         
         

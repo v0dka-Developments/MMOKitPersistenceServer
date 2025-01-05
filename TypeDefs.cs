@@ -15,6 +15,7 @@ namespace PersistenceServer
             FetchWorldItems = 0,
             FetchGuilds = 0,
             BanUsers = 0,
+            UpdateWorldItems = 0,
             UpdateGuilds = 2,
             
         }
@@ -117,6 +118,17 @@ namespace PersistenceServer
             public int selectedCharacterId { get; set; }
             public string name { get; set; }
             public string email { get; set; }
+            
+        }
+        public class UpdateWorldItems
+        {
+            public string? Cookie { get; set; }
+            public int? Charid { get; set; }
+            public int? Accountid { get; set; }
+
+            public string item { get; set; }
+            public string? newitem { get; set; }
+            public string typeofaction { get; set; }
             
         }
 

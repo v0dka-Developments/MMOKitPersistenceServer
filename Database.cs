@@ -1026,37 +1026,122 @@ namespace PersistenceServer
              
         }
         
+        /*
+         *
+         *   deletes world item
+         *   @string item -> name
+         * 
+         */
+        
+        public virtual async Task<int> deleteworlditem(string item)
+        {
+            var cmd = GetCommand("select * from world_itemlist where name = @item");
+            cmd.AddParam("@item", item);
+
+            // Use RunQuery to execute the query and get a DataTable
+            DataTable result = await RunQuery(cmd);
+
+            // Get the number of rows in the DataTable
+            int numberOfRows = result.Rows.Count;
+
+            if (numberOfRows == 1)
+            {
+                var cmd_delete = GetCommand("delete from world_itemlist where name=@item");
+                cmd_delete.AddParam("@item", item);
+                await RunQuery(cmd_delete);
+
+                return 1;
+
+            }
+            else
+            {
+                return -1;
+            }
+
+          
+             
+        }
         
         
         /*
          *
-         *  Updates an account
-         *  @int accountid -> id
-         *  @string accountName -> name
-         *  @string accountEmail -> email
-         *  @int accountStatus -> status
+         *   edits world item
+         *   @string item -> name
+         *   @string newitem -> name
+         *
          */
-        
-        public virtual async Task<int> updateaccount(int accountId, string accountName, string accountEmail, int accountStatus)
+        public virtual async Task<int> editworlditem(string item, string newitem)
         {
-            var cmd = GetCommand("update accounts set name=@accountName, set email=@accountEmail, status=@accountStatus where id=@accountId ");
-            cmd.AddParam("@accountName", accountName);
-            cmd.AddParam("@accountEmail", accountEmail);
-            cmd.AddParam("@accountStatus", accountStatus);
-            cmd.AddParam("@accountid", accountId);
-            // Execute the query and get the number of affected rows
-            int affectedRows = await RunNonQuery(cmd);
+            var cmd = GetCommand("select * from world_itemlist where name = @item");
+            cmd.AddParam("@item", item);
+            var cmdNewItem = GetCommand("select * from world_itemlist where name = @item");
+            cmdNewItem.AddParam("@item", newitem);
 
-            if (affectedRows > 1)
+            // Use RunQuery to execute the query and get a DataTable
+            DataTable result = await RunQuery(cmd);
+            DataTable result_newitem = await RunQuery(cmdNewItem);
+
+            // Get the number of rows in the DataTable
+            int numberOfRows = result.Rows.Count;
+            int numberOfRowsNewItem = result_newitem.Rows.Count;
+            if (numberOfRows == 1 & numberOfRowsNewItem == 0)
             {
-                // return -1 because there should only be a max of 1 account affected
-                return -1;
+                var cmd_update = GetCommand("update world_itemlist set name=@newitem where name=@item");
+                cmd_update.AddParam("@newitem", newitem);
+                cmd_update.AddParam("@item", item);
+                await RunQuery(cmd_update);
+
+                return 1;
+
             }
-            return affectedRows;
+            else
+            {
+                if (numberOfRowsNewItem > 0)
+                {
+                    return -2; // item already exists in the database, cant name new item to this already existing item
+                }
+                else
+                {
+                    return -1;    
+                }
+                
+                
+            }
+
+          
              
         }
         
-       
         
+        /*
+         *
+         *   adds a world item
+         *   @string item -> name
+         *   
+         */
+
+        public virtual async Task<int> addworlditem(string item)
+        {
+            var cmd = GetCommand("select * from world_itemlist where name = @item");
+            cmd.AddParam("@item", item);
+          
+            // Use RunQuery to execute the query and get a DataTable
+            DataTable result = await RunQuery(cmd);
+          
+            // Get the number of rows in the DataTable
+            int numberOfRows = result.Rows.Count;
+            if (numberOfRows == 1)
+            {
+                return -1;
+            }
+            else
+            {
+                var cmd_insert = GetCommand("insert into world_itemlist(name) values (@item)");
+                cmd_insert.AddParam("@item", item);
+                await RunQuery(cmd_insert);
+                return 1;
+            }
+        }
+
     }
 }
